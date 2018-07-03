@@ -31,6 +31,7 @@ class Item:
 
     @staticmethod
     def get_fantasy_name(name_length):
+        """Returns a name using a combination of vowels and consonants"""
 
         if random.randint(0, 1) == 1:
             fantasy_name = Item.get_random_consonant()
@@ -51,6 +52,7 @@ class Item:
 
     @staticmethod
     def get_skew_multiplier(percent=stat_skew_percent):
+        """Takes a percent value and returns a multiplier used to randomly skew the stats of items"""
         return 1 + (random.uniform(-percent, percent) / 100)
 
     @staticmethod
@@ -77,15 +79,9 @@ class Weapon(Item):
         self.total_dmg = blunt_dmg + slash_dmg + puncture_dmg + electric_dmg + fire_dmg + magic_dmg + true_dmg
         self.value = self.total_dmg * rarity
 
-
-
-
-    # @classmethod
-    # def create_weapon(cls, name, ap, rarity, weight, blunt_dmg, slash_dmg, puncture_dmg, electric_dmg, fire_dmg, magic_dmg, true_dmg):
-    #     return cls(name, ap, rarity, weight, blunt_dmg, slash_dmg, puncture_dmg, electric_dmg, fire_dmg, magic_dmg, true_dmg)
-
     @classmethod
     def get_random_weapon(cls, rarity=random.randint(1, 10), weapon_type=None):
+        """Returns a randomized weapon with the option to specify its rarity and type"""
         if not weapon_type:
             weapon_type = Weapon.weapon_types[random.randint(0, len(Weapon.weapon_types) - 1)]
             # ('weapon type is ' + weapon_type)
@@ -349,36 +345,39 @@ class Armour(Item):
                  rarity,
                  weight,
                  armour_type,
-                 blunt_dmg_resistance,
-                 slash_dmg_resistance,
-                 puncture_dmg_resistance,
-                 electric_dmg_resistance,
-                 fire_dmg_resistance,
-                 magic_dmg_resistance,
-                 blunt_dmg_multiplier,
-                 slash_dmg_multiplier,
-                 puncture_dmg_multiplier,
-                 electric_dmg_multiplier,
-                 fire_dmg_multiplier,
-                 magic_dmg_multiplier):
+                 armour_values,
+                 armour_multipliers,
+                 total_value=10):
 
         super().__init__(name, ap, rarity, weight)
         self.name = name
         self.rarity = rarity
         self.weight = weight
         self.armour_type = armour_type
-        self.blunt_dmg_resistance = blunt_dmg_resistance
-        self.slash_dmg_resistance = slash_dmg_resistance
-        self.puncture_dmg_resistance = puncture_dmg_resistance
-        self.electric_dmg_resistance = electric_dmg_resistance
-        self.fire_dmg_resistance = fire_dmg_resistance
-        self.magic_dmg_resistance = magic_dmg_resistance
-        self.blunt_dmg_multiplier = blunt_dmg_multiplier
-        self.slash_dmg_multiplier = slash_dmg_multiplier
-        self.puncture_dmg_multiplier = puncture_dmg_multiplier
-        self.electric_dmg_multiplier = electric_dmg_multiplier
-        self.fire_dmg_multiplier = fire_dmg_multiplier
-        self.magic_dmg_multiplier = magic_dmg_multiplier
+        self.armour_values = armour_values
+        self.armour_multipliers = armour_multipliers
+        self.total_value = total_value
+
+    def __repr__(self):
+        useful_values = []
+        for resistance_type in self.armour_values:
+            if self.armour_values[resistance_type] != 0:
+                useful_values.append(resistance_type)
+
+        armour_values_cleaned = {}
+        for resistance_type in useful_values:
+            armour_values_cleaned[resistance_type] = self.armour_values[resistance_type]
+
+        useful_multipliers = []
+        for multiplier_type in self.armour_multipliers:
+            if self.armour_multipliers[multiplier_type] != 1:
+                useful_multipliers.append(multiplier_type)
+
+        armour_multipliers_cleaned = {}
+        for multiplier_type in useful_multipliers:
+            armour_multipliers_cleaned[multiplier_type] = self.armour_multipliers[multiplier_type]
+
+        return 'Armour Value -- ' + str(self.total_value) + ' | Level ' + str(round(self.rarity, 2)) + ' -- ' + self.name + ' -- ' + '\n' + str(armour_values_cleaned) + '\n' + str(armour_multipliers_cleaned) + '\n\n'
 
     @classmethod
     def get_random_armour(cls, rarity=random.randint(1, 10), armour_type=None, armour_material=None):
@@ -423,9 +422,9 @@ class Armour(Item):
                                  'blunt_dmg_multiplier': 0,
                                  'slash_dmg_multiplier': 0,
                                  'puncture_dmg_multiplier': 0,
-                                 'electric_dmg_multiplier': rarity_scaling_exponential * 1 - (rarity_scaling_exponential * 100 * Item.get_attribute_determiner_value(10)),
-                                 'fire_dmg_multiplier': rarity_scaling_exponential * 2 - (rarity_scaling_exponential * 100 * Item.get_attribute_determiner_value(2)),
-                                 'magic_dmg_multiplier': rarity_scaling_exponential * 1 - (rarity_scaling_exponential * 100 * Item.get_attribute_determiner_value(10))
+                                 'electric_dmg_multiplier': 3 - (Item.get_attribute_determiner_value(30)),
+                                 'fire_dmg_multiplier': 3 - (Item.get_attribute_determiner_value(10)),
+                                 'magic_dmg_multiplier': 3 - (Item.get_attribute_determiner_value(20))
             }
         elif armour_material == 'leather':
             armour_values = {
@@ -444,16 +443,16 @@ class Armour(Item):
                                  'blunt_dmg_multiplier': 0,
                                  'slash_dmg_multiplier': 0,
                                  'puncture_dmg_multiplier': 0,
-                                 'electric_dmg_multiplier': rarity_scaling_exponential * 0.5 - (rarity_scaling_exponential * 100 * Item.get_attribute_determiner_value(8)),
-                                 'fire_dmg_multiplier': rarity_scaling_exponential * 1 - (rarity_scaling_exponential * 100 * Item.get_attribute_determiner_value(4)),
-                                 'magic_dmg_multiplier': rarity_scaling_exponential * 1 - (rarity_scaling_exponential * 100 * Item.get_attribute_determiner_value(8))
+                                 'electric_dmg_multiplier': 3 - (Item.get_attribute_determiner_value(30)),
+                                 'fire_dmg_multiplier': 3 - (Item.get_attribute_determiner_value(12)),
+                                 'magic_dmg_multiplier': 3 - (Item.get_attribute_determiner_value(20))
             }
         elif armour_material == 'chainmail':
             armour_values = {
                             'weight': weight_modifier * 20,
                             'general_resistance': rarity_scaling_exponential * 0.5 - 100,
-                            'blunt_dmg_resistance': rarity_scaling_exponential * 3,
-                            'slash_dmg_resistance': rarity_scaling_exponential * 3 - 10,
+                            'blunt_dmg_resistance': rarity_scaling_exponential * 1.5,
+                            'slash_dmg_resistance': rarity_scaling_exponential * 3,
                             'puncture_dmg_resistance': rarity_scaling_exponential * 1 - 10,
                             'electric_dmg_resistance': rarity_scaling_exponential * 2 - (rarity_scaling_exponential * 100 * Item.get_attribute_determiner_value(4)),
                             'fire_dmg_resistance': rarity_scaling_exponential * 2 - (rarity_scaling_exponential * 100 * Item.get_attribute_determiner_value(4)),
@@ -465,9 +464,9 @@ class Armour(Item):
                                  'blunt_dmg_multiplier': 0,
                                  'slash_dmg_multiplier': 0,
                                  'puncture_dmg_multiplier': 0,
-                                 'electric_dmg_multiplier':  0.5 - (rarity_scaling_exponential * 100 * Item.get_attribute_determiner_value(3)),
-                                 'fire_dmg_multiplier':  1 - (rarity_scaling_exponential * 100 * Item.get_attribute_determiner_value(8)),
-                                 'magic_dmg_multiplier':  1 - (rarity_scaling_exponential * 100 * Item.get_attribute_determiner_value(8))
+                                 'electric_dmg_multiplier':  3 - (Item.get_attribute_determiner_value(10)),
+                                 'fire_dmg_multiplier':  3 - (Item.get_attribute_determiner_value(20)),
+                                 'magic_dmg_multiplier':  3 - (Item.get_attribute_determiner_value(20))
             }
         else:
             print('Not a valid armour material!')
@@ -476,8 +475,8 @@ class Armour(Item):
         total_protection = 0
         for protection_type in armour_values:
 
-            armour_values[protection_type] = armour_values[protection_type] * weight_modifier
             skew_multiplier = Item.get_skew_multiplier()
+            armour_values[protection_type] = armour_values[protection_type] * weight_modifier
 
             if protection_type is not 'ap_multiplier' and protection_type is not 'weight':
                 armour_values[protection_type] = armour_values[protection_type] * skew_multiplier
@@ -488,18 +487,18 @@ class Armour(Item):
             if protection_type is not 'weight' and protection_type is not 'ap_multiplier' and protection_type is not 'weight':
                 total_protection += armour_values[protection_type]
 
-        total_multiplier = 0
+        total_multiplier = 1
         for multiplier in armour_multipliers:
 
             skew_multiplier = Item.get_skew_multiplier()
-            armour_multipliers[multiplier] = armour_multipliers[multiplier] * skew_multiplier
+            armour_multipliers[multiplier] = round(armour_multipliers[multiplier] * skew_multiplier, 1)
 
-            if armour_multipliers[multiplier] < 0:
-                armour_multipliers[multiplier] = 0
+            if armour_multipliers[multiplier] < 1:
+                armour_multipliers[multiplier] = 1
 
-            total_multiplier += armour_multipliers[multiplier]
+            total_multiplier *= armour_multipliers[multiplier]
 
-        total_value = total_protection * (1 / (total_multiplier + 1))
+        total_value = int(total_protection * (1 / total_multiplier))
 
         armour_values['weight'] = round(armour_values['weight'], 1)
 
@@ -527,6 +526,7 @@ class Armour(Item):
                 armour_name = adjectives[random.randint(0, len(adjectives) - 1)] + ' ' + armour_name
 
         if (total_value / weight_modifier) < 10:
+            # print(total_value / weight_modifier)
             armour_name = Item.boring_adjectives[random.randint(0, len(Item.boring_adjectives) - 1)] + ' ' + armour_name
 
         if (total_value / weight_modifier) / rarity > rarity_scaling_exponential * 4 / rarity and rarity > 2.5:
@@ -546,24 +546,14 @@ class Armour(Item):
                              ]
             armour_name += armour_titles[random.randint(0, len(armour_titles) - 1)]
 
-        print('Armour Value -- ' + str(total_value) + ' | Level ' + str(round(rarity, 2)) + ' -- ' + armour_name + ' -- ' + '\n\n' + str(armour_values) + '\n' + str(armour_multipliers) + '\n\n')
         return cls(armour_name,
                    ap,
                    rarity,
                    armour_values['weight'],
                    armour_type,
-                   armour_values['blunt_dmg_resistance'],
-                   armour_values['slash_dmg_resistance'],
-                   armour_values['puncture_dmg_resistance'],
-                   armour_values['electric_dmg_resistance'],
-                   armour_values['fire_dmg_resistance'],
-                   armour_values['magic_dmg_resistance'],
-                   armour_multipliers['blunt_dmg_multiplier'],
-                   armour_multipliers['slash_dmg_multiplier'],
-                   armour_multipliers['puncture_dmg_multiplier'],
-                   armour_multipliers['electric_dmg_multiplier'],
-                   armour_multipliers['fire_dmg_multiplier'],
-                   armour_multipliers['magic_dmg_multiplier'])
+                   armour_values,
+                   armour_multipliers,
+                   total_value)
 
 
 i = 1
@@ -573,5 +563,5 @@ while i <= 10:
 
 i = 1
 while i <= 10:
-    Armour.get_random_armour(i)
+    print(Armour.get_random_armour(i))
     i += 1
