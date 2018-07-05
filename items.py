@@ -5,21 +5,22 @@ logging.basicConfig(level=logging.INFO)
 
 
 class Item:
+    """Base representation of a game object"""
 
-    stat_skew_percent = 0
-    boring_adjectives = ['boring', 'uninteresting', 'unworthy', 'absolutely awful', 'tasteless', 'peasant\'s', 'poorly crafted', 'unfit']
-    vowels = ['a', 'e', 'i', 'o', 'u']
-    consonants = ['w', 'r', 't', 'p', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l', 'z', 'c', 'v', 'b', 'n', 'm']
+    stat_skew_percent = 5
+    boring_adjectives = ('boring', 'uninteresting', 'unworthy', 'absolutely awful', 'tasteless', 'peasant\'s', 'poorly crafted', 'unfit')
+    vowels = ('a', 'e', 'i', 'o', 'u')
+    consonants = ('w', 'r', 't', 'p', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l', 'z', 'c', 'v', 'b', 'n', 'm')
 
-    def __init__(self, name, ap, rarity, weight):
+    def __init__(self, name, item_stats):
         self.name = name
-        self.ap = ap
-        self.rarity = rarity
-        self.weight = weight
-        self.value = rarity * 50
+        self.item_values = item_stats
+
+        if 'total_value' in item_stats:
+            self.total_value = item_stats['rarity'] * 50
 
     def __repr__(self):
-        return self.name
+        return self.item_values['name']
 
     @staticmethod
     def get_random_consonant():
@@ -62,37 +63,88 @@ class Item:
 
 class Weapon(Item):
 
-    weapon_types = ['sword', 'axe', 'mace', 'spear', 'halberd', 'rapier', 'greatsword', 'dagger', 'caestus', 'bow', 'glaive']
+    dmg_type_list = ('blunt_dmg', 'slash_dmg', 'puncture_dmg', 'electric_dmg', 'fire_dmg', 'magic_dmg', 'true_dmg')
+    weapon_types = ('sword', 'axe', 'mace', 'spear', 'halberd', 'rapier', 'greatsword', 'dagger', 'caestus', 'bow', 'glaive')
 
-    def __init__(self, name, ap, rarity, weight, weapon_type, weapon_range, blunt_dmg, slash_dmg, puncture_dmg, electric_dmg, fire_dmg, magic_dmg, true_dmg):
-        super().__init__(name, ap, rarity, weight)
+    def __init__(self, name, weapon_stats):
+        super().__init__(name, weapon_stats)
 
-        self.weapon_type = weapon_type
-        self.weapon_range = weapon_range
-        self.blunt_dmg = blunt_dmg
-        self.slash_dmg = slash_dmg
-        self.puncture_dmg = puncture_dmg
-        self.electric_dmg = electric_dmg
-        self.fire_dmg = fire_dmg
-        self.magic_dmg = magic_dmg
-        self.true_dmg = true_dmg
-        self.total_dmg = blunt_dmg + slash_dmg + puncture_dmg + electric_dmg + fire_dmg + magic_dmg + true_dmg
-        self.value = self.total_dmg * rarity
+        self.item_stats = weapon_stats
 
-    @classmethod
-    def get_random_weapon(cls, rarity=random.randint(1, 10), weapon_type=None):
-        """Returns a randomized weapon with the option to specify its rarity and type"""
+        self.item_stats['total_dmg'] = 0
+        for dmg_type in weapon_stats:
+            if dmg_type in Weapon.dmg_type_list:
+                """Check if dmg_type is a damage type instead of something like ap or weight"""
+                self.item_stats['total_dmg'] += weapon_stats[dmg_type]
+
+        self.useful_dmg_values = {}
+        for dmg_type in self.item_stats:
+            if dmg_type in Weapon.dmg_type_list:
+                """Check if dmg_type is a damage type instead of something like ap or weight"""
+                if self.item_stats[dmg_type] != 0:
+                    self.useful_dmg_values[dmg_type] = str(self.item_stats[dmg_type])
+
+        self.total_value = self.item_stats['total_dmg'] * weapon_stats['rarity']
+
+    def __repr__(self):
+        weapon_stat_string = 'Dmg per AP value -- ' + str(round(self.item_stats['total_dmg'] / self.item_stats['ap'], 2)) + ' | Level ' + str(round(self.item_stats['rarity'], 2)) + ' -- ' + self.name + '\n'
+        for dmg_type in self.useful_dmg_values:
+            weapon_stat_string += dmg_type + ' -- ' + str(self.useful_dmg_values[dmg_type]) + '\n'
+
+        return weapon_stat_string
+
+    @staticmethod
+    def test_item_balance(item_classification, item_type=None, sample_size=1000):
+        # TODO:finish. Returns comparisons of the average stats for items for balance purposes
+        do_not_compare = ['weight', 'ap']
+        item_type_list = []
+        item_list = []
+
+        if item_classification == 'weapon':
+            item_type_list = Weapon.weapon_types
+        elif item_classification == 'armour':
+            item_type_list = Armour.armour_types
+
+        i = 0
+        while i < sample_size:
+            if item_classification == 'weapon':
+                item_list.append(Weapon.get_random_weapon(None, item_type))
+            elif item_classification == 'armour':
+                item_list.append(Armour.get_random_armour(None, item_type))
+            else:
+                raise Exception(item_classification + ' is not a valid type of item! try \"weapon\" or \"armour\"')
+            i += 1
+        """we made a list of rng items, lets sort and compare this info"""
+
+        separated_items = {}
+        """separated_items is a dict with keys as the item_type string and values that are lists which include all items of that item type"""
+        if item_type:
+            separated_items = {item_type: item_list}
+        else:
+            for item_type in item_type_list:
+                separated_items[item_type] = []
+                for item in item_list:
+                    if item.item_stats['item_type'] == item_type:
+                        separated_items[item_type].append(item)
+
+        for item_type in separated_items:
+            for item in separated_items[item_type]:
+                item_stats = item.item_stats
+
+
+    @staticmethod
+    def get_weapon_values(rarity=None, weapon_type=None):
+        if not rarity:
+            rarity = random.randint(1, 10)
         if not weapon_type:
             weapon_type = Weapon.weapon_types[random.randint(0, len(Weapon.weapon_types) - 1)]
-            # ('weapon type is ' + weapon_type)
 
-        weapon_name = weapon_type
         ap_scalar = 0.15
         rarity_scaling_exponential = pow(rarity, 2)
         ap_scaling_exponential = pow(rarity, 1)
 
         if weapon_type == 'sword':
-            weapon_type_modifiers = {
+            weapon_stats = {
                                     'ap': 40 * ap_scaling_exponential * ap_scalar + 1,
                                     'range': 0.8 * Item.get_skew_multiplier(20),
                                     'weight': 3 * Item.get_skew_multiplier(20),
@@ -105,7 +157,7 @@ class Weapon(Item):
                                     'true_dmg': 10 * rarity_scaling_exponential - (rarity * 150 * Weapon.get_attribute_determiner_value(8))
             }
         elif weapon_type == 'axe':
-            weapon_type_modifiers = {
+            weapon_stats = {
                                     'ap': 40 * ap_scaling_exponential * ap_scalar + 1,
                                     'range': 0.6 * Item.get_skew_multiplier(40),
                                     'weight': 3 * Item.get_skew_multiplier(20),
@@ -118,7 +170,7 @@ class Weapon(Item):
                                     'true_dmg': 10 * rarity_scaling_exponential - (rarity * 150 * Weapon.get_attribute_determiner_value(8))
             }
         elif weapon_type == 'mace':
-            weapon_type_modifiers = {
+            weapon_stats = {
                                     'ap': 40 * ap_scaling_exponential * ap_scalar + 1,
                                     'range': 0.7 * Item.get_skew_multiplier(20),
                                     'weight': 2.5 * Item.get_skew_multiplier(10),
@@ -131,7 +183,7 @@ class Weapon(Item):
                                     'true_dmg': 10 * rarity_scaling_exponential - (rarity * 150 * Weapon.get_attribute_determiner_value(12))
             }
         elif weapon_type == 'spear':
-            weapon_type_modifiers = {
+            weapon_stats = {
                                     'ap': 45 * ap_scaling_exponential * ap_scalar + 1,
                                     'range': 2.1 * Item.get_skew_multiplier(15),
                                     'weight': 3 * Item.get_skew_multiplier(20),
@@ -144,7 +196,7 @@ class Weapon(Item):
                                     'true_dmg': 13 * rarity_scaling_exponential - (rarity * 150 * Weapon.get_attribute_determiner_value(4))
             }
         elif weapon_type == 'halberd':
-            weapon_type_modifiers = {
+            weapon_stats = {
                                     'ap': 70 * ap_scaling_exponential * ap_scalar + 1,
                                     'range': 1.65 * Item.get_skew_multiplier(10),
                                     'weight': 5 * Item.get_skew_multiplier(20),
@@ -158,7 +210,7 @@ class Weapon(Item):
 
             }
         elif weapon_type == 'rapier':
-            weapon_type_modifiers = {
+            weapon_stats = {
                                     'ap': 20 * ap_scaling_exponential * ap_scalar + 1,
                                     'range': 1.15 * Item.get_skew_multiplier(10),
                                     'weight': 2 * Item.get_skew_multiplier(10),
@@ -172,7 +224,7 @@ class Weapon(Item):
 
             }
         elif weapon_type == 'greatsword':
-            weapon_type_modifiers = {
+            weapon_stats = {
                                     'ap': 80 * ap_scaling_exponential * ap_scalar + 1,
                                     'range': 1.65 * Item.get_skew_multiplier(10),
                                     'weight': 5 * Item.get_skew_multiplier(10),
@@ -186,7 +238,7 @@ class Weapon(Item):
 
             }
         elif weapon_type == 'dagger':
-            weapon_type_modifiers = {
+            weapon_stats = {
                                     'ap': 7 * ap_scaling_exponential * ap_scalar * 2 + 1,
                                     'range': 0.385 * Item.get_skew_multiplier(70),
                                     'weight': 0.5 * Item.get_skew_multiplier(50),
@@ -200,7 +252,7 @@ class Weapon(Item):
 
             }
         elif weapon_type == 'caestus':
-            weapon_type_modifiers = {
+            weapon_stats = {
                                     'ap': 4 * ap_scaling_exponential * ap_scalar * 2 + 1,
                                     'range': 0.1 * Item.get_skew_multiplier(10),
                                     'weight': 0.3 * Item.get_skew_multiplier(10),
@@ -214,7 +266,7 @@ class Weapon(Item):
 
             }
         elif weapon_type == 'bow':
-            weapon_type_modifiers = {
+            weapon_stats = {
                                     'ap': 40 * ap_scaling_exponential * ap_scalar + 1,
                                     'range': 140 * Item.get_skew_multiplier(20),
                                     'weight': 2 * Item.get_skew_multiplier(10),
@@ -229,7 +281,7 @@ class Weapon(Item):
 
             }
         elif weapon_type == 'glaive':
-            weapon_type_modifiers = {
+            weapon_stats = {
                                     'ap': 65 * ap_scaling_exponential * ap_scalar + 1,
                                     'range': 2.4 * Item.get_skew_multiplier(10),
                                     'weight': 5 * Item.get_skew_multiplier(10),
@@ -244,53 +296,76 @@ class Weapon(Item):
 
             }
         else:
-            print('not a valid weapon type!')
-            pass
+            raise Exception('not a valid weapon type!')
 
-        total_dmg = 0
-        for dmg_type in weapon_type_modifiers:
+        for dmg_type in weapon_stats:
 
             skew_multiplier = Weapon.get_skew_multiplier()
 
-            if dmg_type is not 'range' and dmg_type is not 'weight':
-                weapon_type_modifiers[dmg_type] = weapon_type_modifiers[dmg_type] * skew_multiplier
-                weapon_type_modifiers[dmg_type] = int(weapon_type_modifiers[dmg_type])
+            if dmg_type in Weapon.dmg_type_list:
+                """Check if dmg_type is a damage type instead of something like ap or weight"""
+                weapon_stats[dmg_type] = weapon_stats[dmg_type] * skew_multiplier
+                weapon_stats[dmg_type] = int(weapon_stats[dmg_type])
 
-            if weapon_type_modifiers[dmg_type] < 0:
-                weapon_type_modifiers[dmg_type] = 0
-            if dmg_type is not 'ap' and dmg_type is not 'range' and dmg_type is not 'weight':
-                total_dmg += weapon_type_modifiers[dmg_type]
+            if weapon_stats[dmg_type] < 0:
+                weapon_stats[dmg_type] = 0
 
-        weapon_type_modifiers['weight'] = round(weapon_type_modifiers['weight'], 1)
-        weapon_type_modifiers['range'] = round(weapon_type_modifiers['range'], 2)
+        weapon_stats['weight'] = round(weapon_stats['weight'], 1)
+        weapon_stats['range'] = round(weapon_stats['range'], 2)
 
-        dmg_per_ap = total_dmg / weapon_type_modifiers['ap']
+        weapon_stats['rarity'] = rarity
+        weapon_stats['item_type'] = weapon_type
 
-        for dmg_type in weapon_type_modifiers:
-            if weapon_type_modifiers[dmg_type] * (rarity / 2) / weapon_type_modifiers['ap'] > .5:
-                adjectives = ['']
-                if dmg_type == 'blunt_dmg':
-                    adjectives = ['crushing', 'bone-breaking', 'head-squashing', 'bludgeoning', 'crippling', 'gut-wrenching', 'heavy']
+        return weapon_stats
 
-                elif dmg_type == 'slash_dmg':
-                    adjectives = ['slicing', 'slashing', 'bleeding', 'serrated', 'head-chopping', 'decapitating', 'cutting-edge', 'dismembering', 'sharp']
+    @classmethod
+    def get_random_weapon(cls, rarity=None, weapon_type=None):
+        """Returns a randomized weapon with the option to specify its rarity and type"""
 
-                elif dmg_type == 'puncture_dmg':
-                    adjectives = ['piercing', 'puncturing', 'poking', 'impaling', 'stabbing', 'skewering', 'hole-making', 'pointy']
+        if not rarity:
+            rarity = random.randint(1, 10)
+        if not weapon_type:
+            weapon_type = Weapon.weapon_types[random.randint(0, len(Weapon.weapon_types) - 1)]
 
-                elif dmg_type == 'electric_dmg':
-                    adjectives = ['electrifying', 'shocking', 'heart-stopping', 'sparking', 'thunderous', 'jolting', 'zapping']
+        rarity_scaling_exponential = pow(rarity, 2)
+        weapon_name = weapon_type
+        weapon_stats = Weapon.get_weapon_values(rarity, weapon_type)
 
-                elif dmg_type == 'fire_dmg':
-                    adjectives = ['burning', 'fiery', 'blistering', 'scorching', 'searing', 'red-hot', 'flaming']
+        total_dmg = 0
+        for dmg_type in weapon_stats:
+            if dmg_type in Weapon.dmg_type_list:
+                """Check if dmg_type is a damage type instead of something like ap or weight"""
+                total_dmg += weapon_stats[dmg_type]
 
-                elif dmg_type == 'magic_dmg':
-                    adjectives = ['magical', 'enchanted', 'mystical', 'spellbound', 'spectral', 'otherworldly', 'encanted']
+        dmg_per_ap = total_dmg / weapon_stats['ap']
 
-                elif dmg_type == 'true_dmg':
-                    adjectives = ['armour-ignoring', 'disemboweling', 'murderous', 'intimidating', 'legendary', 'killer', 'precise']
+        for dmg_type in weapon_stats:
+            if dmg_type in Weapon.dmg_type_list:
+                """Check if dmg_type is a damage type instead of something like ap or weight"""
+                if weapon_stats[dmg_type] * (rarity / 2) / weapon_stats['ap'] > .5:
+                    adjectives = ['']
+                    if dmg_type == 'blunt_dmg':
+                        adjectives = ['crushing', 'bone-breaking', 'head-squashing', 'bludgeoning', 'crippling', 'gut-wrenching', 'heavy']
 
-                weapon_name = adjectives[random.randint(0, len(adjectives) - 1)] + ' ' + weapon_name
+                    elif dmg_type == 'slash_dmg':
+                        adjectives = ['slicing', 'slashing', 'bleeding', 'serrated', 'head-chopping', 'decapitating', 'cutting-edge', 'dismembering', 'sharp']
+
+                    elif dmg_type == 'puncture_dmg':
+                        adjectives = ['piercing', 'puncturing', 'poking', 'impaling', 'stabbing', 'skewering', 'hole-making', 'pointy']
+
+                    elif dmg_type == 'electric_dmg':
+                        adjectives = ['electrifying', 'shocking', 'heart-stopping', 'sparking', 'thunderous', 'jolting', 'zapping']
+
+                    elif dmg_type == 'fire_dmg':
+                        adjectives = ['burning', 'fiery', 'blistering', 'scorching', 'searing', 'red-hot', 'flaming']
+
+                    elif dmg_type == 'magic_dmg':
+                        adjectives = ['magical', 'enchanted', 'mystical', 'spellbound', 'spectral', 'otherworldly', 'encanted']
+
+                    elif dmg_type == 'true_dmg':
+                        adjectives = ['armour-ignoring', 'disemboweling', 'murderous', 'intimidating', 'legendary', 'killer', 'precise']
+
+                    weapon_name = adjectives[random.randint(0, len(adjectives) - 1)] + ' ' + weapon_name
 
         if dmg_per_ap < 5:
             weapon_name = Item.boring_adjectives[random.randint(0, len(Item.boring_adjectives) - 1)] + ' ' + weapon_name
@@ -315,83 +390,54 @@ class Weapon(Item):
                              ]
             weapon_name += weapon_titles[random.randint(0, len(weapon_titles) - 1)]
 
-        print('Dmg per AP value -- ' + str(round(total_dmg / weapon_type_modifiers['ap'], 2)) + ' | Level ' + str(round(rarity, 2)) + ' -- ' + weapon_name + ' -- ' + str(weapon_type_modifiers) + '\n')
-        return cls(
-            weapon_name,
-            weapon_type_modifiers['ap'],
-            rarity,
-            weapon_type_modifiers['weight'],
-            weapon_type,
-            weapon_type_modifiers['range'],
-            weapon_type_modifiers['blunt_dmg'],
-            weapon_type_modifiers['slash_dmg'],
-            weapon_type_modifiers['puncture_dmg'],
-            weapon_type_modifiers['electric_dmg'],
-            weapon_type_modifiers['fire_dmg'],
-            weapon_type_modifiers['magic_dmg'],
-            weapon_type_modifiers['true_dmg']
-                   )
+        return cls(weapon_name, weapon_stats)
 
 
 class Armour(Item):
 
+    armour_resistance_types = ['general_resistance', 'blunt_dmg_resistance', 'slash_dmg_resistance', 'puncture_dmg_resistance', 'electric_dmg_resistance', 'fire_dmg_resistance', 'magic_dmg_resistance']
+    armour_multiplier_types = ['general_dmg_multiplier', 'blunt_dmg_multiplier', 'slash_dmg_multiplier', 'puncture_dmg_multiplier', 'electric_dmg_multiplier', 'fire_dmg_multiplier', 'magic_dmg_multiplier']
     armour_types = ['helmet', 'chestpiece', 'arm guards', 'gloves', 'leggings']
     armour_materials = ['cloth', 'leather', 'chainmail', 'bronze', 'iron' 'steel']
     armour_materials = ['cloth', 'leather', 'chainmail']
 
-    def __init__(self,
-                 name,
-                 ap,
-                 rarity,
-                 weight,
-                 armour_type,
-                 armour_values,
-                 armour_multipliers,
-                 total_value=10):
+    def __init__(self, name, armour_values):
 
-        super().__init__(name, ap, rarity, weight)
+        super().__init__(name, armour_values)
         self.name = name
-        self.rarity = rarity
-        self.weight = weight
-        self.armour_type = armour_type
-        self.armour_values = armour_values
-        self.armour_multipliers = armour_multipliers
-        self.total_value = total_value
+        self.item_stats = armour_values
+
+        self.useful_resistances = {}
+        self.useful_multipliers = {}
+
+        for value in self.item_stats:
+            if value in Armour.armour_resistance_types:
+                if self.item_stats[value] != 0:
+                    self.useful_resistances[value] = str(self.item_stats[value])
+            elif value in Armour.armour_multiplier_types:
+                if self.item_stats[value] > 1:
+                    self.useful_multipliers[value] = str(self.item_stats[value])
 
     def __repr__(self):
-        useful_values = []
-        for resistance_type in self.armour_values:
-            if self.armour_values[resistance_type] != 0:
-                useful_values.append(resistance_type)
+        armour_stat_string = ''
+        for resistance_type in self.useful_resistances:
+            armour_stat_string += resistance_type + ' -- ' + self.useful_resistances[resistance_type] + '\n'
+        armour_stat_string += '\n'
+        for multiplier_type in self.useful_multipliers:
+            armour_stat_string += multiplier_type + ' -- ' + self.useful_multipliers[multiplier_type] + '\n'
 
-        armour_values_cleaned = {}
-        for resistance_type in useful_values:
-            armour_values_cleaned[resistance_type] = self.armour_values[resistance_type]
+        return 'Armour Value -- ' + str(self.item_stats['total_value']) + ' | Level ' + str(round(self.item_stats['rarity'], 2)) + ' -- ' + self.name + '\n' + armour_stat_string + '\n\n'
 
-        useful_multipliers = []
-        for multiplier_type in self.armour_multipliers:
-            if self.armour_multipliers[multiplier_type] != 1:
-                useful_multipliers.append(multiplier_type)
-
-        armour_multipliers_cleaned = {}
-        for multiplier_type in useful_multipliers:
-            armour_multipliers_cleaned[multiplier_type] = self.armour_multipliers[multiplier_type]
-
-        return 'Armour Value -- ' + str(self.total_value) + ' | Level ' + str(round(self.rarity, 2)) + ' -- ' + self.name + ' -- ' + '\n' + str(armour_values_cleaned) + '\n' + str(armour_multipliers_cleaned) + '\n\n'
-
-    @classmethod
-    def get_random_armour(cls, rarity=random.randint(1, 10), armour_type=None, armour_material=None):
-
+    @staticmethod
+    def get_armour_values(rarity=None, armour_type=None, armour_material=None):
+        if not rarity:
+            rarity = random.randint(1, 10)
         if not armour_type:
             armour_type = Armour.armour_types[random.randint(0, len(Armour.armour_types) - 1)]
         if not armour_material:
             armour_material = Armour.armour_materials[random.randint(0, len(Armour.armour_materials) - 1)]
 
-        armour_name = armour_material + ' ' + armour_type
-        armour_values = {}
-        armour_multipliers = {}
         weight_modifier = 0
-        ap = 10
         rarity_scaling_exponential = pow(rarity, 1.6)
 
         if armour_type == 'helmet':
@@ -406,7 +452,7 @@ class Armour(Item):
             weight_modifier = random.uniform(0.7, 0.8)
 
         if armour_material == 'cloth':
-            armour_values = {
+            armour_stats = {
                             'weight': weight_modifier * 8,
                             'general_resistance': rarity_scaling_exponential * 0.5 - 100,
                             'blunt_dmg_resistance': rarity_scaling_exponential * 2,
@@ -415,19 +461,16 @@ class Armour(Item):
                             'electric_dmg_resistance': rarity_scaling_exponential * 5 - (rarity_scaling_exponential * 100 * Item.get_attribute_determiner_value(4)),
                             'fire_dmg_resistance': 0,
                             'magic_dmg_resistance': rarity_scaling_exponential * 5 - (rarity_scaling_exponential * 100 * Item.get_attribute_determiner_value(2)),
-
-            }
-            armour_multipliers = {
-                                 'general_dmg_multiplier': 0,
-                                 'blunt_dmg_multiplier': 0,
-                                 'slash_dmg_multiplier': 0,
-                                 'puncture_dmg_multiplier': 0,
-                                 'electric_dmg_multiplier': 3 - (Item.get_attribute_determiner_value(30)),
-                                 'fire_dmg_multiplier': 3 - (Item.get_attribute_determiner_value(10)),
-                                 'magic_dmg_multiplier': 3 - (Item.get_attribute_determiner_value(20))
+                            'general_dmg_multiplier': 0,
+                            'blunt_dmg_multiplier': 0,
+                            'slash_dmg_multiplier': 0,
+                            'puncture_dmg_multiplier': 0,
+                            'electric_dmg_multiplier': 3 - (Item.get_attribute_determiner_value(30)),
+                            'fire_dmg_multiplier': 3 - (Item.get_attribute_determiner_value(10)),
+                            'magic_dmg_multiplier': 3 - (Item.get_attribute_determiner_value(20))
             }
         elif armour_material == 'leather':
-            armour_values = {
+            armour_stats = {
                             'weight': weight_modifier * 12,
                             'general_resistance': rarity_scaling_exponential * 0.3 - 100,
                             'blunt_dmg_resistance': rarity_scaling_exponential * 3,
@@ -436,19 +479,16 @@ class Armour(Item):
                             'electric_dmg_resistance': rarity_scaling_exponential * 5 - (rarity_scaling_exponential * 100 * Item.get_attribute_determiner_value(4)),
                             'fire_dmg_resistance': 0,
                             'magic_dmg_resistance': rarity_scaling_exponential * 5 - (rarity_scaling_exponential * 100 * Item.get_attribute_determiner_value(2)),
-
-            }
-            armour_multipliers = {
-                                 'general_dmg_multiplier': 0,
-                                 'blunt_dmg_multiplier': 0,
-                                 'slash_dmg_multiplier': 0,
-                                 'puncture_dmg_multiplier': 0,
-                                 'electric_dmg_multiplier': 3 - (Item.get_attribute_determiner_value(30)),
-                                 'fire_dmg_multiplier': 3 - (Item.get_attribute_determiner_value(12)),
-                                 'magic_dmg_multiplier': 3 - (Item.get_attribute_determiner_value(20))
+                            'general_dmg_multiplier': 0,
+                            'blunt_dmg_multiplier': 0,
+                            'slash_dmg_multiplier': 0,
+                            'puncture_dmg_multiplier': 0,
+                            'electric_dmg_multiplier': 3 - (Item.get_attribute_determiner_value(30)),
+                            'fire_dmg_multiplier': 3 - (Item.get_attribute_determiner_value(12)),
+                            'magic_dmg_multiplier': 3 - (Item.get_attribute_determiner_value(20))
             }
         elif armour_material == 'chainmail':
-            armour_values = {
+            armour_stats = {
                             'weight': weight_modifier * 20,
                             'general_resistance': rarity_scaling_exponential * 0.5 - 100,
                             'blunt_dmg_resistance': rarity_scaling_exponential * 1.5,
@@ -457,79 +497,94 @@ class Armour(Item):
                             'electric_dmg_resistance': rarity_scaling_exponential * 2 - (rarity_scaling_exponential * 100 * Item.get_attribute_determiner_value(4)),
                             'fire_dmg_resistance': rarity_scaling_exponential * 2 - (rarity_scaling_exponential * 100 * Item.get_attribute_determiner_value(4)),
                             'magic_dmg_resistance': rarity_scaling_exponential * 2 - (rarity_scaling_exponential * 100 * Item.get_attribute_determiner_value(4)),
-
-            }
-            armour_multipliers = {
-                                 'general_dmg_multiplier': 0,
-                                 'blunt_dmg_multiplier': 0,
-                                 'slash_dmg_multiplier': 0,
-                                 'puncture_dmg_multiplier': 0,
-                                 'electric_dmg_multiplier':  3 - (Item.get_attribute_determiner_value(10)),
-                                 'fire_dmg_multiplier':  3 - (Item.get_attribute_determiner_value(20)),
-                                 'magic_dmg_multiplier':  3 - (Item.get_attribute_determiner_value(20))
+                            'general_dmg_multiplier': 0,
+                            'blunt_dmg_multiplier': 0,
+                            'slash_dmg_multiplier': 0,
+                            'puncture_dmg_multiplier': 0,
+                            'electric_dmg_multiplier':  3 - (Item.get_attribute_determiner_value(10)),
+                            'fire_dmg_multiplier':  3 - (Item.get_attribute_determiner_value(20)),
+                            'magic_dmg_multiplier':  3 - (Item.get_attribute_determiner_value(20))
             }
         else:
-            print('Not a valid armour material!')
-            pass
+            raise Exception('Not a valid armour material!')
 
         total_protection = 0
-        for protection_type in armour_values:
-
-            skew_multiplier = Item.get_skew_multiplier()
-            armour_values[protection_type] = armour_values[protection_type] * weight_modifier
-
-            if protection_type is not 'ap_multiplier' and protection_type is not 'weight':
-                armour_values[protection_type] = armour_values[protection_type] * skew_multiplier
-                armour_values[protection_type] = int(armour_values[protection_type])
-
-            if armour_values[protection_type] < 0:
-                armour_values[protection_type] = 0
-            if protection_type is not 'weight' and protection_type is not 'ap_multiplier' and protection_type is not 'weight':
-                total_protection += armour_values[protection_type]
-
         total_multiplier = 1
-        for multiplier in armour_multipliers:
+        for value in armour_stats:
 
             skew_multiplier = Item.get_skew_multiplier()
-            armour_multipliers[multiplier] = round(armour_multipliers[multiplier] * skew_multiplier, 1)
+            armour_stats[value] = armour_stats[value] * weight_modifier
 
-            if armour_multipliers[multiplier] < 1:
-                armour_multipliers[multiplier] = 1
+            if value in Armour.armour_resistance_types or value in Armour.armour_multiplier_types:
+                armour_stats[value] = armour_stats[value] * skew_multiplier
+                armour_stats[value] = int(armour_stats[value])
 
-            total_multiplier *= armour_multipliers[multiplier]
+            if armour_stats[value] < 0:
+                armour_stats[value] = 0
+            if value in Armour.armour_resistance_types:
+                total_protection += armour_stats[value]
+
+            if value in Armour.armour_multiplier_types:
+                armour_stats[value] = round(armour_stats[value] * skew_multiplier, 1)
+
+                if armour_stats[value] < 1:
+                    armour_stats[value] = 1
+
+                total_multiplier *= armour_stats[value]
 
         total_value = int(total_protection * (1 / total_multiplier))
 
-        armour_values['weight'] = round(armour_values['weight'], 1)
+        armour_stats['total_value'] = total_value
+        armour_stats['rarity'] = rarity
+        armour_stats['item_type'] = armour_type
+        armour_stats['weight'] = round(armour_stats['weight'], 1)
+        armour_stats['weight_modifier'] = weight_modifier
 
-        for protection_type in armour_values:
-            if armour_values[protection_type] * (rarity / 2) > 5 and protection_type is not 'weight':
-                adjectives = ['']
-                if protection_type == 'blunt_dmg_resistance':
-                    adjectives = ['hardy', 'cushioning', 'heavy', 'dent-resistant', 'shock-absorbing']
+        return armour_stats
 
-                elif protection_type == 'slash_dmg_resistance':
-                    adjectives = ['hard', 'scratch-resistant', 'hardened', 'tempered']
+    @classmethod
+    def get_random_armour(cls, rarity=None, armour_type=None, armour_material=None):
+        if not rarity:
+            rarity = random.randint(1, 10)
+        if not armour_type:
+            armour_type = Armour.armour_types[random.randint(0, len(Armour.armour_types) - 1)]
+        if not armour_material:
+            armour_material = Armour.armour_materials[random.randint(0, len(Armour.armour_materials) - 1)]
 
-                elif protection_type == 'puncture_dmg_resistance':
-                    adjectives = ['impenetrable', 'thick', 'deflecting', 'puncture-resistant']
+        armour_stats = Armour.get_armour_values(rarity, armour_type, armour_material)
+        armour_name = armour_material + ' ' + armour_type
+        armour_stats['ap'] = 10
+        rarity_scaling_exponential = pow(rarity, 1.6)
 
-                elif protection_type == 'electric_dmg_resistance':
-                    adjectives = ['grounded', 'rubbery', 'electron-absorbing', 'lightning-reflecting']
+        for resistance_type in armour_stats:
+            if resistance_type in Armour.armour_resistance_types:
+                if armour_stats[resistance_type] * (rarity / 2) > 5 and resistance_type is not 'weight':
+                    adjectives = ['']
+                    if resistance_type == 'blunt_dmg_resistance':
+                        adjectives = ['hardy', 'cushioning', 'heavy', 'dent-resistant', 'shock-absorbing']
 
-                elif protection_type == 'fire_dmg_resistance':
-                    adjectives = ['heat-treated', 'unburnable', 'heat-absorbing', 'fire-resistant']
+                    elif resistance_type == 'slash_dmg_resistance':
+                        adjectives = ['hard', 'scratch-resistant', 'hardened', 'tempered']
 
-                elif protection_type == 'magic_dmg_resistance':
-                    adjectives = ['blessed', 'encanted', 'magical', 'dark']
+                    elif resistance_type == 'puncture_dmg_resistance':
+                        adjectives = ['impenetrable', 'thick', 'deflecting', 'puncture-resistant']
 
-                armour_name = adjectives[random.randint(0, len(adjectives) - 1)] + ' ' + armour_name
+                    elif resistance_type == 'electric_dmg_resistance':
+                        adjectives = ['grounded', 'rubbery', 'electron-absorbing', 'lightning-reflecting']
 
-        if (total_value / weight_modifier) < 10:
+                    elif resistance_type == 'fire_dmg_resistance':
+                        adjectives = ['heat-treated', 'unburnable', 'heat-absorbing', 'fire-resistant']
+
+                    elif resistance_type == 'magic_dmg_resistance':
+                        adjectives = ['blessed', 'encanted', 'magical', 'dark']
+
+                    armour_name = adjectives[random.randint(0, len(adjectives) - 1)] + ' ' + armour_name
+
+        if (armour_stats['total_value'] / armour_stats['weight_modifier']) < 10:
             # print(total_value / weight_modifier)
             armour_name = Item.boring_adjectives[random.randint(0, len(Item.boring_adjectives) - 1)] + ' ' + armour_name
 
-        if (total_value / weight_modifier) / rarity > rarity_scaling_exponential * 4 / rarity and rarity > 2.5:
+        if (armour_stats['total_value'] / armour_stats['weight_modifier']) / rarity > rarity_scaling_exponential * 4 / rarity and rarity > 2.5:
             fantasy_name = Item.get_fantasy_name(random.randint(1, 4))
             armour_titles = [' of ' + fantasy_name,
                              ' from the land of ' + fantasy_name,
@@ -546,19 +601,12 @@ class Armour(Item):
                              ]
             armour_name += armour_titles[random.randint(0, len(armour_titles) - 1)]
 
-        return cls(armour_name,
-                   ap,
-                   rarity,
-                   armour_values['weight'],
-                   armour_type,
-                   armour_values,
-                   armour_multipliers,
-                   total_value)
+        return cls(armour_name, armour_stats)
 
 
 i = 1
 while i <= 10:
-    Weapon.get_random_weapon(i)
+    print(Weapon.get_random_weapon(i))
     i += 1
 
 i = 1
