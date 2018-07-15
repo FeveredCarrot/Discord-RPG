@@ -3,27 +3,14 @@ import discord
 import asyncio
 import os
 import pickle
-import items
-import enemies
-import player
 
 logging.basicConfig(level=logging.INFO)
 
 prefix = '--'
 
 save_file = ''
-token_file = 'bot_token.txt'
-token = ''
 
 client = discord.Client()
-
-
-with open(token_file, 'r') as f:
-    if os.path.getsize(token_file) > 0:
-        token = f.readline()
-    else:
-        print(token_file + ' is empty!')
-
 
 @client.event
 async def on_ready():
@@ -35,10 +22,7 @@ async def on_ready():
 
 @client.event
 async def on_message(message):
-    print(message.author.name)
-    if message.channel.name == 'memes' or message.channel.name == 'memedumps':
-        pass
-    elif message.content.startswith('!test'):
+    if message.content.startswith('!test'):
         counter = 0
         tmp = await client.send_message(message.channel, 'Calculating messages...')
         async for log in client.logs_from(message.channel, limit=100):
@@ -46,16 +30,16 @@ async def on_message(message):
                 counter += 1
 
         await client.edit_message(tmp, 'You have {} messages.'.format(counter))
-    elif message.content.startswith('!weapon'):
-        await client.send_message(message.channel, str(items.Weapon.get_random_weapon(items.Item.get_item_rarity())))
-    elif message.content.startswith('!armour'):
-        await client.send_message(message.channel, str(items.Armour.get_random_armour(items.Item.get_item_rarity())))
+    elif message.content.startswith('!sleep'):
+        await asyncio.sleep(5)
+        await client.send_message(message.channel, 'Done sleeping')
 
-print(items.Item.test_item_balance('weapon', None, 10000))
 
-i = 1
-while i <= 10:
-    print(items.Weapon.get_random_weapon())
-    i += 1
+with open(save_file, 'rb') as f:
+    if os.path.getsize(save_file) > 0:
+        # unpickler = pickle.Unpickler(f)
+        accounts = pickle.load(f)
+    else:
+        print('Bank file empty')
 
-client.run("NDU4NDY2NzUwOTkzMDA2NTk0.DigNdg.gWBlaevMP_wcIKd0CuOzT0ZhVp4")
+client.run("MjU4MDA0MjM1OTAyMjU1MTA1.DIda-g.j6b0db-C-vg1MAkAqpxtbDw1hw4")
