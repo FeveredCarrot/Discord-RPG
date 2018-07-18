@@ -5,10 +5,24 @@ import random
 class Item:
     # Base representation of a game object
 
-    stat_skew_percent = 0
+    stat_skew_percent = 10
     boring_adjectives = ('boring', 'uninteresting', 'unworthy', 'absolutely awful', 'tasteless', 'peasant\'s', 'poorly crafted', 'unfit', 'terrible')
     vowels = ('a', 'e', 'i', 'o', 'u')
     consonants = ('w', 'r', 't', 'p', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l', 'z', 'c', 'v', 'b', 'n', 'm', '-')
+    japanese_letters = ('a', 'i', 'u', 'e', 'o', 'ya', 'yu', 'yo', 'n',
+                        'ka', 'ki', 'ku', 'ke', 'ko', 'kya', 'kyu', 'kyo',
+                        'sa', 'shi', 'su', 'se', 'so', 'sha', 'shu', 'sho',
+                        'ta', 'chi', 'tsu', 'te', 'to', 'cha', 'chu', 'cho',
+                        'na', 'ni', 'nu', 'ne', 'no', 'nya', 'nyu', 'nyo',
+                        'ha', 'hi', 'fu', 'he', 'ho', 'hya', 'hyu', 'hyo',
+                        'ma', 'mi', 'mu', 'me', 'mo', 'mya', 'myu', 'myo',
+                        'ra', 'ri', 'ru', 're', 'ro', 'rya', 'ryu', 'ryo',
+                        'wa', 'wi', 'we', 'wo'
+                        'ga', 'gi', 'gu', 'ge', 'go', 'gya', 'gyu', 'gyo',
+                        'za', 'ji', 'zu', 'ze', 'zo', 'ja', 'ju', 'jo',
+                        'da', 'de', 'do'
+                        'ba', 'bi', 'bu', 'be', 'bo', 'bya', 'byu', 'byo',
+                        'pa', 'pi', 'pu', 'pe', 'po', 'pya', 'pyu', 'pyo')
 
     def __init__(self, name, item_stat_dict):
         self.name = name
@@ -23,37 +37,46 @@ class Item:
     @staticmethod
     def get_item_rarity():
         random_number = random.uniform(0, 10)
-        # return (0.211 * random_number)**3.02 + 0.5
-        return (0.214 * random_number)**3.02 + 0.1
+        return 4*(0.1919 * random_number - 0.608)**3 + 1
+        # return (0.214 * random_number)**3.02 + 0.1
 
     @staticmethod
-    def get_random_consonant():
-        return Item.consonants[random.randint(0, len(Item.consonants) - 1)]
+    def get_random_consonant(consonant_list=None):
+        if not consonant_list:
+            consonant_list = Item.consonants
+        return consonant_list[random.randint(0, len(consonant_list) - 1)]
 
     @staticmethod
-    def get_random_vowel():
-        return Item.vowels[random.randint(0, len(Item.vowels) - 1)]
+    def get_random_vowel(vowel_list=None):
+        if not vowel_list:
+            vowel_list = Item.consonants
+        return vowel_list[random.randint(0, len(vowel_list) - 1)]
 
     @staticmethod
-    def get_fantasy_name(name_length):
+    def get_fantasy_name(name_length, vowel_list=None, consonant_list=None):
         # Returns a name using a combination of vowels and consonants
+        if not vowel_list:
+            vowel_list = Item.vowels
+        if not consonant_list:
+            consonant_list = Item.consonants
 
         if random.randint(0, 1) == 1:
-            fantasy_name = Item.get_random_consonant()
-            fantasy_name += Item.get_random_vowel()
+            fantasy_name = Item.get_random_consonant(consonant_list)
+            fantasy_name += Item.get_random_vowel(vowel_list)
         else:
-            fantasy_name = Item.get_random_vowel()
+            fantasy_name = Item.get_random_vowel(vowel_list)
 
         i = 0
-        while i < name_length:
-            fantasy_name += Item.get_random_consonant()
-            fantasy_name += Item.get_random_vowel()
+        while i < name_length - 1:
+            fantasy_name += Item.get_random_consonant(consonant_list)
+            fantasy_name += Item.get_random_vowel(vowel_list)
             i += 1
 
         if random.randint(0, 1) == 1:
-            fantasy_name += Item.get_random_consonant()
+            fantasy_name += Item.get_random_consonant(consonant_list)
 
         return str.capitalize(fantasy_name)
+
 
     @staticmethod
     def get_skew_multiplier(percent=stat_skew_percent):
@@ -86,7 +109,7 @@ class Item:
                 raise Exception(item_classification + ' is not a valid type of item! try \"weapon\" or \"armour\"')
                 continue
             i += 1
-        #we made a list of rng items, lets sort and compare this info
+        # we made a list of rng items, lets sort and compare this info
 
         separated_items = {}
         # separated_items is a dict with keys as the item_type string and values that are lists which include all items of that item type
@@ -141,6 +164,7 @@ class Weapon(Item):
 
     dmg_type_list = ('blunt_dmg', 'slash_dmg', 'puncture_dmg', 'electric_dmg', 'fire_dmg', 'magic_dmg', 'true_dmg')
     weapon_types = ('sword', 'axe', 'mace', 'spear', 'halberd', 'rapier', 'greatsword', 'dagger', 'caestus', 'bow', 'glaive', 'katana', 'nodachi', 'wand', 'wizard staff', 'quarterstaff', 'warhammer')
+    japanese_weapons = ('katana', 'nodachi')
 
     def __init__(self, name, weapon_stats):
         super().__init__(name, weapon_stats)
@@ -193,7 +217,7 @@ class Weapon(Item):
                                     'one_handed': True,
                                     'throw_dmg_multiplier': 0.5,
                                     'blunt_dmg': 5 * rarity_scaling_exponential - 70,
-                                    'slash_dmg': 20 * rarity_scaling_exponential,
+                                    'slash_dmg': 20 * rarity_scaling_exponential + 3,
                                     'puncture_dmg': 5 * rarity_scaling_exponential - 65,
                                     'electric_dmg': 10 * rarity_scaling_exponential - (rarity * 100 * Weapon.get_attribute_determiner_value(3)),
                                     'fire_dmg': 10 * rarity_scaling_exponential - (rarity * 100 * Weapon.get_attribute_determiner_value(3)),
@@ -209,7 +233,7 @@ class Weapon(Item):
                                     'one_handed': True,
                                     'throw_dmg_multiplier': 1.1,
                                     'blunt_dmg': 4 * rarity_scaling_exponential - 20,
-                                    'slash_dmg': 20 * rarity_scaling_exponential,
+                                    'slash_dmg': 20 * rarity_scaling_exponential + 3,
                                     'puncture_dmg': 5 * rarity_scaling_exponential - 15,
                                     'electric_dmg': 10 * rarity_scaling_exponential - (rarity * 100 * Weapon.get_attribute_determiner_value(4)),
                                     'fire_dmg': 10 * rarity_scaling_exponential - (rarity * 100 * Weapon.get_attribute_determiner_value(4)),
@@ -224,7 +248,7 @@ class Weapon(Item):
                                     'ammo_type': None,
                                     'one_handed': True,
                                     'throw_dmg_multiplier': 0.5,
-                                    'blunt_dmg': 20 * rarity_scaling_exponential,
+                                    'blunt_dmg': 20 * rarity_scaling_exponential + 3,
                                     'slash_dmg': 5 * rarity_scaling_exponential - 100,
                                     'puncture_dmg': 5 * rarity_scaling_exponential - 80,
                                     'electric_dmg': 10 * rarity_scaling_exponential - (rarity * 100 * Weapon.get_attribute_determiner_value(4)),
@@ -242,7 +266,7 @@ class Weapon(Item):
                                     'throw_dmg_multiplier': 2,
                                     'blunt_dmg': 0,
                                     'slash_dmg': 5 * rarity_scaling_exponential - 80,
-                                    'puncture_dmg': 20 * rarity_scaling_exponential,
+                                    'puncture_dmg': 20 * rarity_scaling_exponential + 3,
                                     'electric_dmg': 7 * rarity_scaling_exponential - (rarity * 100 * Weapon.get_attribute_determiner_value(2)),
                                     'fire_dmg': 11 * rarity_scaling_exponential - (rarity * 100 * Weapon.get_attribute_determiner_value(2)),
                                     'magic_dmg': 10 * rarity_scaling_exponential - (rarity * 100 * Weapon.get_attribute_determiner_value(2)),
@@ -257,7 +281,7 @@ class Weapon(Item):
                                     'one_handed': False,
                                     'throw_dmg_multiplier': 0.2,
                                     'blunt_dmg': 5 * rarity_scaling_exponential - 100,
-                                    'slash_dmg': 17 * rarity_scaling_exponential,
+                                    'slash_dmg': 17 * rarity_scaling_exponential + 5,
                                     'puncture_dmg': 17 * rarity_scaling_exponential,
                                     'electric_dmg': 15 * rarity_scaling_exponential - (rarity * 100 * Weapon.get_attribute_determiner_value(4)),
                                     'fire_dmg': 13 * rarity_scaling_exponential - (rarity * 100 * Weapon.get_attribute_determiner_value(2)),
@@ -274,8 +298,8 @@ class Weapon(Item):
                                     'one_handed': True,
                                     'throw_dmg_multiplier': 0.5,
                                     'blunt_dmg': 5 * rarity_scaling_exponential - 200,
-                                    'slash_dmg': 4 * rarity_scaling_exponential,
-                                    'puncture_dmg': 8 * rarity_scaling_exponential,
+                                    'slash_dmg': 4 * rarity_scaling_exponential + 1,
+                                    'puncture_dmg': 8 * rarity_scaling_exponential + 2,
                                     'electric_dmg': 3 * rarity_scaling_exponential - (rarity * 100 * Weapon.get_attribute_determiner_value(2)),
                                     'fire_dmg': 3 * rarity_scaling_exponential - (rarity * 100 * Weapon.get_attribute_determiner_value(3)),
                                     'magic_dmg': 3 * rarity_scaling_exponential - (rarity * 100 * Weapon.get_attribute_determiner_value(3)),
@@ -291,7 +315,7 @@ class Weapon(Item):
                                     'one_handed': False,
                                     'throw_dmg_multiplier': 0.8,
                                     'blunt_dmg': 15 * rarity_scaling_exponential - 20,
-                                    'slash_dmg': 40 * rarity_scaling_exponential,
+                                    'slash_dmg': 40 * rarity_scaling_exponential + 5,
                                     'puncture_dmg': 10 * rarity_scaling_exponential - 50,
                                     'electric_dmg': 10 * rarity_scaling_exponential - (rarity * 100 * Weapon.get_attribute_determiner_value(4)),
                                     'fire_dmg': 10 * rarity_scaling_exponential - (rarity * 100 * Weapon.get_attribute_determiner_value(3)),
@@ -308,8 +332,8 @@ class Weapon(Item):
                                     'one_handed': True,
                                     'throw_dmg_multiplier': 1.2,
                                     'blunt_dmg': 1 * rarity_scaling_exponential - 100,
-                                    'slash_dmg': 6 * rarity_scaling_exponential,
-                                    'puncture_dmg': 5 * rarity_scaling_exponential,
+                                    'slash_dmg': 6 * rarity_scaling_exponential + 1,
+                                    'puncture_dmg': 5 * rarity_scaling_exponential + 1,
                                     'electric_dmg': 2 * rarity_scaling_exponential - (rarity * 100 * Weapon.get_attribute_determiner_value(4)),
                                     'fire_dmg': 2 * rarity_scaling_exponential - (rarity * 100 * Weapon.get_attribute_determiner_value(3)),
                                     'magic_dmg': 2 * rarity_scaling_exponential - (rarity * 100 * Weapon.get_attribute_determiner_value(3)),
@@ -324,7 +348,7 @@ class Weapon(Item):
                                     'ammo_type': None,
                                     'one_handed': False,
                                     'throw_dmg_multiplier': 0.1,
-                                    'blunt_dmg': 4 * rarity_scaling_exponential,
+                                    'blunt_dmg': 4 * rarity_scaling_exponential + 1,
                                     'slash_dmg': 2 * rarity_scaling_exponential - 100,
                                     'puncture_dmg': 2 * rarity_scaling_exponential - 50,
                                     'electric_dmg': 5 * rarity_scaling_exponential - (rarity * 100 * Weapon.get_attribute_determiner_value(4)),
@@ -343,7 +367,7 @@ class Weapon(Item):
                                     'throw_dmg_multiplier': 0.1,
                                     'blunt_dmg': 2 * rarity_scaling_exponential - 150,
                                     'slash_dmg': 5 * rarity_scaling_exponential - 100,
-                                    'puncture_dmg': 15 * rarity_scaling_exponential,
+                                    'puncture_dmg': 15 * rarity_scaling_exponential + 3,
                                     'electric_dmg': 5 * rarity_scaling_exponential - (rarity * 100 * Weapon.get_attribute_determiner_value(3)),
                                     'fire_dmg': 10 * rarity_scaling_exponential - (rarity * 100 * Weapon.get_attribute_determiner_value(2)),
                                     'magic_dmg': 5 * rarity_scaling_exponential - (rarity * 100 * Weapon.get_attribute_determiner_value(3)),
@@ -358,8 +382,8 @@ class Weapon(Item):
                                     'one_handed': False,
                                     'throw_dmg_multiplier': 0.9,
                                     'blunt_dmg': 5 * rarity_scaling_exponential - 100,
-                                    'slash_dmg': 20 * rarity_scaling_exponential,
-                                    'puncture_dmg': 5 * rarity_scaling_exponential,
+                                    'slash_dmg': 20 * rarity_scaling_exponential + 4,
+                                    'puncture_dmg': 5 * rarity_scaling_exponential + 1,
                                     'electric_dmg': 15 * rarity_scaling_exponential - (rarity_scaling_exponential * 100 * Weapon.get_attribute_determiner_value(4)),
                                     'fire_dmg': 13 * rarity_scaling_exponential - (rarity_scaling_exponential * 100 * Weapon.get_attribute_determiner_value(2)),
                                     'magic_dmg': 13 * rarity_scaling_exponential - (rarity_scaling_exponential * 100 * Weapon.get_attribute_determiner_value(2)),
@@ -374,7 +398,7 @@ class Weapon(Item):
                                     'one_handed': True,
                                     'throw_dmg_multiplier': 0.7,
                                     'blunt_dmg': 3 * rarity_scaling_exponential - 70,
-                                    'slash_dmg': 13 * rarity_scaling_exponential,
+                                    'slash_dmg': 13 * rarity_scaling_exponential + 3,
                                     'puncture_dmg': 5 * rarity_scaling_exponential - 65,
                                     'electric_dmg': 10 * rarity_scaling_exponential - (rarity * 100 * Weapon.get_attribute_determiner_value(3)),
                                     'fire_dmg': 10 * rarity_scaling_exponential - (rarity * 100 * Weapon.get_attribute_determiner_value(3)),
@@ -390,7 +414,7 @@ class Weapon(Item):
                                     'one_handed': False,
                                     'throw_dmg_multiplier': 0.8,
                                     'blunt_dmg': 3 * rarity_scaling_exponential - 20,
-                                    'slash_dmg': 40 * rarity_scaling_exponential,
+                                    'slash_dmg': 40 * rarity_scaling_exponential + 5,
                                     'puncture_dmg': 10 * rarity_scaling_exponential - 50,
                                     'electric_dmg': 10 * rarity_scaling_exponential - (rarity * 100 * Weapon.get_attribute_determiner_value(4)),
                                     'fire_dmg': 10 * rarity_scaling_exponential - (rarity * 100 * Weapon.get_attribute_determiner_value(4)),
@@ -410,7 +434,7 @@ class Weapon(Item):
                                     'puncture_dmg': 0,
                                     'electric_dmg': 10 * rarity_scaling_exponential - (rarity * 100 * Weapon.get_attribute_determiner_value(4)),
                                     'fire_dmg': 10 * rarity_scaling_exponential - (rarity * 100 * Weapon.get_attribute_determiner_value(4)),
-                                    'magic_dmg': 5 * rarity_scaling_exponential,
+                                    'magic_dmg': 5 * rarity_scaling_exponential + 3,
                                     'true_dmg': 10 * rarity_scaling_exponential - (rarity * 150 * Weapon.get_attribute_determiner_value(12))
             }
         elif weapon_type == 'wizard staff':
@@ -426,7 +450,7 @@ class Weapon(Item):
                                     'puncture_dmg': 0,
                                     'electric_dmg': 20 * rarity_scaling_exponential - (rarity * 100 * Weapon.get_attribute_determiner_value(4)),
                                     'fire_dmg': 20 * rarity_scaling_exponential - (rarity * 100 * Weapon.get_attribute_determiner_value(4)),
-                                    'magic_dmg': 10 * rarity_scaling_exponential,
+                                    'magic_dmg': 10 * rarity_scaling_exponential + 5,
                                     'true_dmg': 10 * rarity_scaling_exponential - (rarity * 150 * Weapon.get_attribute_determiner_value(12))
             }
         elif weapon_type == 'quarterstaff':
@@ -437,7 +461,7 @@ class Weapon(Item):
                                     'ammo_type': 'mana',
                                     'one_handed': False,
                                     'throw_dmg_multiplier': 0.1,
-                                    'blunt_dmg': 8 * rarity_scaling_exponential,
+                                    'blunt_dmg': 8 * rarity_scaling_exponential + 3,
                                     'slash_dmg': 1 * rarity_scaling_exponential - 20,
                                     'puncture_dmg': 3 * rarity_scaling_exponential - 20,
                                     'electric_dmg': 10 * rarity_scaling_exponential - (rarity * 100 * Weapon.get_attribute_determiner_value(4)),
@@ -453,7 +477,7 @@ class Weapon(Item):
                                     'ammo_type': None,
                                     'one_handed': False,
                                     'throw_dmg_multiplier': 1.2,
-                                    'blunt_dmg': 45 * rarity_scaling_exponential,
+                                    'blunt_dmg': 45 * rarity_scaling_exponential + 7,
                                     'slash_dmg': 10 * rarity_scaling_exponential - 50,
                                     'puncture_dmg': 10 * rarity_scaling_exponential - 50,
                                     'electric_dmg': 10 * rarity_scaling_exponential - (rarity * 100 * Weapon.get_attribute_determiner_value(3)),
@@ -470,7 +494,7 @@ class Weapon(Item):
                                     'ammo_type': None,
                                     'one_handed': False,
                                     'throw_dmg_multiplier': 2,
-                                    'blunt_dmg': 3 * rarity_scaling_exponential - 20,
+                                    'blunt_dmg': 3 * rarity_scaling_exponential + 2,
                                     'slash_dmg': 3 * rarity_scaling_exponential - 20,
                                     'puncture_dmg': 10 * rarity_scaling_exponential - 50,
                                     'electric_dmg': 10 * rarity_scaling_exponential - (rarity * 100 * Weapon.get_attribute_determiner_value(2)),
@@ -503,7 +527,7 @@ class Weapon(Item):
 
     @classmethod
     def get_random_weapon(cls, rarity=None, weapon_type=None):
-        """Returns a randomized weapon with the option to specify its rarity and type"""
+        # Returns a randomized weapon with the option to specify its rarity and type
 
         if not rarity:
             # rarity = random.uniform(1, 10)
@@ -555,7 +579,10 @@ class Weapon(Item):
             weapon_name = Item.boring_adjectives[random.randint(0, len(Item.boring_adjectives) - 1)] + ' ' + weapon_name
 
         if dmg_per_ap > rarity_scaling_exponential * 4.5 / rarity and rarity > 2.5:
-            fantasy_name = Item.get_fantasy_name(random.randint(1, 4))
+            if weapon_type in Weapon.japanese_weapons or random.uniform(0, 1) > 0.8:
+                fantasy_name = Item.get_fantasy_name(random.randint(2, 4), Item.japanese_letters, Item.japanese_letters)
+            else:
+                fantasy_name = Item.get_fantasy_name(random.randint(1, 3))
             weapon_titles = [' of ' + fantasy_name,
                              ' from the land of ' + fantasy_name,
                              ', crafted by the talented ' + fantasy_name,
@@ -582,7 +609,7 @@ class Armour(Item):
     armour_resistance_types = ('general_resistance', 'blunt_dmg_resistance', 'slash_dmg_resistance', 'puncture_dmg_resistance', 'electric_dmg_resistance', 'fire_dmg_resistance', 'magic_dmg_resistance')
     armour_multiplier_types = ('general_dmg_multiplier', 'blunt_dmg_multiplier', 'slash_dmg_multiplier', 'puncture_dmg_multiplier', 'electric_dmg_multiplier', 'fire_dmg_multiplier', 'magic_dmg_multiplier')
     armour_types = ('helmet', 'chestpiece', 'arm guards', 'gloves', 'leggings')
-    armour_materials = ('cloth', 'leather', 'chainmail', 'bronze', 'iron', 'steel')
+    armour_materials = ('cloth', 'leather', 'wooden', 'chainmail', 'bronze', 'iron', 'steel')
 
     def __init__(self, name, armour_values):
 
@@ -641,16 +668,16 @@ class Armour(Item):
             armour_stats = {
                             'weight': weight_modifier * 8,
                             'general_resistance': rarity_scaling_exponential * 0.5 - 100,
-                            'blunt_dmg_resistance': rarity_scaling_exponential * 3,
-                            'slash_dmg_resistance': rarity_scaling_exponential * 1 - 10,
-                            'puncture_dmg_resistance': rarity_scaling_exponential * 1 - 10,
+                            'blunt_dmg_resistance': rarity_scaling_exponential * 3 + 5,
+                            'slash_dmg_resistance': rarity_scaling_exponential * 1 - 3,
+                            'puncture_dmg_resistance': rarity_scaling_exponential * 1 - 3,
                             'electric_dmg_resistance': rarity_scaling_exponential * 5 - (rarity_scaling_exponential * 100 * Item.get_attribute_determiner_value(4)),
                             'fire_dmg_resistance': 0,
                             'magic_dmg_resistance': rarity_scaling_exponential * 5 - (rarity_scaling_exponential * 100 * Item.get_attribute_determiner_value(2)),
-                            'general_dmg_multiplier': 0,
-                            'blunt_dmg_multiplier': 0,
-                            'slash_dmg_multiplier': 0,
-                            'puncture_dmg_multiplier': 0,
+                            'general_dmg_multiplier': 1,
+                            'blunt_dmg_multiplier': 1,
+                            'slash_dmg_multiplier': 1,
+                            'puncture_dmg_multiplier': 1,
                             'electric_dmg_multiplier': 3 - (Item.get_attribute_determiner_value(30)),
                             'fire_dmg_multiplier': 3 - (Item.get_attribute_determiner_value(10)),
                             'magic_dmg_multiplier': 3 - (Item.get_attribute_determiner_value(20))
@@ -659,18 +686,36 @@ class Armour(Item):
             armour_stats = {
                             'weight': weight_modifier * 12,
                             'general_resistance': rarity_scaling_exponential * 0.3 - 100,
-                            'blunt_dmg_resistance': rarity_scaling_exponential * 5,
-                            'slash_dmg_resistance': rarity_scaling_exponential * 1.5 - 10,
-                            'puncture_dmg_resistance': rarity_scaling_exponential * 1.3 - 10,
+                            'blunt_dmg_resistance': rarity_scaling_exponential * 5 + 7,
+                            'slash_dmg_resistance': rarity_scaling_exponential * 1.5 - 3,
+                            'puncture_dmg_resistance': rarity_scaling_exponential * 1.3 - 3,
                             'electric_dmg_resistance': rarity_scaling_exponential * 5 - (rarity_scaling_exponential * 100 * Item.get_attribute_determiner_value(4)),
                             'fire_dmg_resistance': 0,
                             'magic_dmg_resistance': rarity_scaling_exponential * 5 - (rarity_scaling_exponential * 100 * Item.get_attribute_determiner_value(2)),
-                            'general_dmg_multiplier': 0,
-                            'blunt_dmg_multiplier': 0,
-                            'slash_dmg_multiplier': 0,
-                            'puncture_dmg_multiplier': 0,
+                            'general_dmg_multiplier': 1,
+                            'blunt_dmg_multiplier': 1,
+                            'slash_dmg_multiplier': 1,
+                            'puncture_dmg_multiplier': 1,
                             'electric_dmg_multiplier': 3 - (Item.get_attribute_determiner_value(30)),
                             'fire_dmg_multiplier': 3 - (Item.get_attribute_determiner_value(12)),
+                            'magic_dmg_multiplier': 3 - (Item.get_attribute_determiner_value(20))
+            }
+        elif armour_material == 'wooden':
+            armour_stats = {
+                            'weight': weight_modifier * 15,
+                            'general_resistance': rarity_scaling_exponential * 0.3 - 100,
+                            'blunt_dmg_resistance': rarity_scaling_exponential * 2 - 3,
+                            'slash_dmg_resistance': rarity_scaling_exponential * 5 + 5,
+                            'puncture_dmg_resistance': rarity_scaling_exponential * 3 - 3,
+                            'electric_dmg_resistance': rarity_scaling_exponential * 5 - (rarity_scaling_exponential * 100 * Item.get_attribute_determiner_value(4)),
+                            'fire_dmg_resistance': 0,
+                            'magic_dmg_resistance': rarity_scaling_exponential * 5 - (rarity_scaling_exponential * 100 * Item.get_attribute_determiner_value(2)),
+                            'general_dmg_multiplier': 1,
+                            'blunt_dmg_multiplier': 1,
+                            'slash_dmg_multiplier': 1,
+                            'puncture_dmg_multiplier': 1,
+                            'electric_dmg_multiplier': 3 - (Item.get_attribute_determiner_value(30)),
+                            'fire_dmg_multiplier': 3 - (Item.get_attribute_determiner_value(8)),
                             'magic_dmg_multiplier': 3 - (Item.get_attribute_determiner_value(20))
             }
         elif armour_material == 'chainmail':
@@ -678,15 +723,15 @@ class Armour(Item):
                             'weight': weight_modifier * 20,
                             'general_resistance': rarity_scaling_exponential * 0.5 - 100,
                             'blunt_dmg_resistance': rarity_scaling_exponential * 2,
-                            'slash_dmg_resistance': rarity_scaling_exponential * 5,
-                            'puncture_dmg_resistance': rarity_scaling_exponential * 1 - 10,
+                            'slash_dmg_resistance': rarity_scaling_exponential * 5 + 10,
+                            'puncture_dmg_resistance': rarity_scaling_exponential * 1 - 3,
                             'electric_dmg_resistance': rarity_scaling_exponential * 2 - (rarity_scaling_exponential * 100 * Item.get_attribute_determiner_value(4)),
                             'fire_dmg_resistance': rarity_scaling_exponential * 2 - (rarity_scaling_exponential * 100 * Item.get_attribute_determiner_value(4)),
                             'magic_dmg_resistance': rarity_scaling_exponential * 2 - (rarity_scaling_exponential * 100 * Item.get_attribute_determiner_value(4)),
-                            'general_dmg_multiplier': 0,
-                            'blunt_dmg_multiplier': 0,
-                            'slash_dmg_multiplier': 0,
-                            'puncture_dmg_multiplier': 0,
+                            'general_dmg_multiplier': 1,
+                            'blunt_dmg_multiplier': 1,
+                            'slash_dmg_multiplier': 1,
+                            'puncture_dmg_multiplier': 1,
                             'electric_dmg_multiplier':  3 - (Item.get_attribute_determiner_value(10)),
                             'fire_dmg_multiplier':  3 - (Item.get_attribute_determiner_value(20)),
                             'magic_dmg_multiplier':  3 - (Item.get_attribute_determiner_value(20))
@@ -695,16 +740,16 @@ class Armour(Item):
             armour_stats = {
                             'weight': weight_modifier * 30,
                             'general_resistance': rarity_scaling_exponential * 0.5 - 100,
-                            'blunt_dmg_resistance': rarity_scaling_exponential * 1 - 10,
-                            'slash_dmg_resistance': rarity_scaling_exponential * 10,
-                            'puncture_dmg_resistance': rarity_scaling_exponential * 5,
+                            'blunt_dmg_resistance': rarity_scaling_exponential * 1 - 3,
+                            'slash_dmg_resistance': rarity_scaling_exponential * 10 + 10,
+                            'puncture_dmg_resistance': rarity_scaling_exponential * 5 + 3,
                             'electric_dmg_resistance': 0,
                             'fire_dmg_resistance': rarity_scaling_exponential * 2 - (rarity_scaling_exponential * 100 * Item.get_attribute_determiner_value(4)),
-                            'magic_dmg_resistance': 0,
-                            'general_dmg_multiplier': 0,
-                            'blunt_dmg_multiplier': 0,
-                            'slash_dmg_multiplier': 0,
-                            'puncture_dmg_multiplier': 0,
+                            'magic_dmg_resistance': 1,
+                            'general_dmg_multiplier': 1,
+                            'blunt_dmg_multiplier': 1,
+                            'slash_dmg_multiplier': 1,
+                            'puncture_dmg_multiplier': 1,
                             'electric_dmg_multiplier':  3 - (Item.get_attribute_determiner_value(5)),
                             'fire_dmg_multiplier':  3 - (Item.get_attribute_determiner_value(30)),
                             'magic_dmg_multiplier':  3 - (Item.get_attribute_determiner_value(10))
@@ -713,16 +758,16 @@ class Armour(Item):
             armour_stats = {
                             'weight': weight_modifier * 40,
                             'general_resistance': rarity_scaling_exponential * 0.5 - 100,
-                            'blunt_dmg_resistance': rarity_scaling_exponential * 2 - 10,
-                            'slash_dmg_resistance': rarity_scaling_exponential * 13,
-                            'puncture_dmg_resistance': rarity_scaling_exponential * 7,
+                            'blunt_dmg_resistance': rarity_scaling_exponential * 2 - 3,
+                            'slash_dmg_resistance': rarity_scaling_exponential * 13 + 10,
+                            'puncture_dmg_resistance': rarity_scaling_exponential * 7 + 4,
                             'electric_dmg_resistance': 0,
                             'fire_dmg_resistance': rarity_scaling_exponential * 2 - (rarity_scaling_exponential * 100 * Item.get_attribute_determiner_value(3)),
-                            'magic_dmg_resistance': 0,
-                            'general_dmg_multiplier': 0,
-                            'blunt_dmg_multiplier': 0,
-                            'slash_dmg_multiplier': 0,
-                            'puncture_dmg_multiplier': 0,
+                            'magic_dmg_resistance': 1,
+                            'general_dmg_multiplier': 1,
+                            'blunt_dmg_multiplier': 1,
+                            'slash_dmg_multiplier': 1,
+                            'puncture_dmg_multiplier': 1,
                             'electric_dmg_multiplier':  3 - (Item.get_attribute_determiner_value(4)),
                             'fire_dmg_multiplier':  3 - (Item.get_attribute_determiner_value(30)),
                             'magic_dmg_multiplier':  3 - (Item.get_attribute_determiner_value(10))
@@ -731,16 +776,16 @@ class Armour(Item):
             armour_stats = {
                             'weight': weight_modifier * 50,
                             'general_resistance': rarity_scaling_exponential * 0.5 - 100,
-                            'blunt_dmg_resistance': rarity_scaling_exponential * 3 - 10,
-                            'slash_dmg_resistance': rarity_scaling_exponential * 15,
-                            'puncture_dmg_resistance': rarity_scaling_exponential * 10,
+                            'blunt_dmg_resistance': rarity_scaling_exponential * 3 - 3,
+                            'slash_dmg_resistance': rarity_scaling_exponential * 15 + 10,
+                            'puncture_dmg_resistance': rarity_scaling_exponential * 10 + 5,
                             'electric_dmg_resistance': 0,
                             'fire_dmg_resistance': rarity_scaling_exponential * 2 - (rarity_scaling_exponential * 100 * Item.get_attribute_determiner_value(3)),
-                            'magic_dmg_resistance': 0,
-                            'general_dmg_multiplier': 0,
-                            'blunt_dmg_multiplier': 0,
-                            'slash_dmg_multiplier': 0,
-                            'puncture_dmg_multiplier': 0,
+                            'magic_dmg_resistance': 1,
+                            'general_dmg_multiplier': 1,
+                            'blunt_dmg_multiplier': 1,
+                            'slash_dmg_multiplier': 1,
+                            'puncture_dmg_multiplier': 1,
                             'electric_dmg_multiplier':  3 - (Item.get_attribute_determiner_value(5)),
                             'fire_dmg_multiplier':  3 - (Item.get_attribute_determiner_value(30)),
                             'magic_dmg_multiplier':  3 - (Item.get_attribute_determiner_value(8))
@@ -775,6 +820,7 @@ class Armour(Item):
         total_value = int(total_protection * (1 / total_multiplier))
 
         armour_stats['total_value'] = total_value
+        armour_stats['total_protection'] = total_protection
         armour_stats['rarity'] = rarity
         armour_stats['item_type'] = armour_material
         armour_stats['weight'] = round(armour_stats['weight'], 1)
@@ -794,6 +840,8 @@ class Armour(Item):
         armour_stats = Armour.get_armour_values(rarity, armour_type, armour_material)
         armour_name = armour_material + ' ' + armour_type
         armour_stats['ap'] = 10
+        armour_stats['armour_type'] = armour_type
+        armour_stats['armour_material'] = armour_material
         rarity_scaling_exponential = pow(rarity, 1.6)
 
         for resistance_type in armour_stats:
@@ -807,7 +855,7 @@ class Armour(Item):
                         adjectives = ['hard', 'scratch-resistant', 'hardened', 'tempered']
 
                     elif resistance_type == 'puncture_dmg_resistance':
-                        adjectives = ['impenetrable', 'thick', 'deflecting', 'puncture-resistant']
+                        adjectives = ['impenetrable', 'thick', 'deflecting', 'puncture-resistant', 'thicc']
 
                     elif resistance_type == 'electric_dmg_resistance':
                         adjectives = ['grounded', 'rubbery', 'electron-absorbing', 'lightning-reflecting']
@@ -823,9 +871,12 @@ class Armour(Item):
         if (armour_stats['total_value'] / armour_stats['weight_modifier']) < 10:
             # print(total_value / weight_modifier)
             armour_name = Item.boring_adjectives[random.randint(0, len(Item.boring_adjectives) - 1)] + ' ' + armour_name
-
-        if (armour_stats['total_value'] / armour_stats['weight_modifier']) / rarity > rarity_scaling_exponential * 4 / rarity and rarity > 2.5:
-            fantasy_name = Item.get_fantasy_name(random.randint(1, 4))
+        print((armour_stats['total_value'] / armour_stats['weight_modifier']) / rarity**1.3)
+        if (armour_stats['total_value'] / armour_stats['weight_modifier']) / rarity**1.3 > 21 and rarity > 2.5:
+            if random.uniform(0, 1) > 0.8:
+                fantasy_name = Item.get_fantasy_name(random.randint(1, 3), Item.japanese_letters, Item.japanese_letters)
+            else:
+                fantasy_name = Item.get_fantasy_name(random.randint(1, 3))
             armour_titles = [' of ' + fantasy_name,
                              ' from the land of ' + fantasy_name,
                              ', crafted by the talented ' + fantasy_name,
@@ -837,31 +888,36 @@ class Armour(Item):
                              ', worn by the great ' + fantasy_name,
                              ' excavated from the tombs of ' + fantasy_name,
                              ', born from the depths of ' + fantasy_name,
-                             ', originating from the deserts of ' + fantasy_name
+                             ', originating from the deserts of ' + fantasy_name,
                              ]
             armour_name += armour_titles[random.randint(0, len(armour_titles) - 1)]
 
         return cls(armour_name, armour_stats)
 
     @staticmethod
-    def get_armour_set(rarity=None, armour_material=None):
+    def get_armour_set(rarity=None, armour_material=None, armour_material_list=None, consistency=None):
         if not rarity:
             rarity = Item.get_item_rarity()
         if not armour_material:
             armour_material = Armour.armour_materials[random.randint(0, len(Armour.armour_materials) - 1)]
+        if not armour_material_list:
+            armour_material_list = list(Armour.armour_materials)
+        if not consistency:
+            consistency = 1
+        if type(armour_material_list) != list:
+            armour_material_list = list(armour_material_list)
+        armour_material_list.append('none')
 
-        armour_set_list = []
+        armour_set = []
         for armour_type in Armour.armour_types:
-            armour_set_list.append(Armour.get_random_armour(rarity, armour_type, armour_material))
-# i = 1
-# while i <= 10:
-#     print(Weapon.get_random_weapon(i))
-#     i += 1
-#
-# i = 1
-# while i <= 10:
-#     print(Armour.get_random_armour(i))
-#     i += 1
-#
-# print(Item.test_item_balance('armour', None, 20000))
-# print(Item.test_item_balance('weapon', None, 100000))
+            rarity *= Item.get_skew_multiplier(10)
+            if random.uniform(0, 1) > consistency:
+                inconsistent_armour_material = armour_material_list[random.randint(0, len(armour_material_list) - 1)]
+                if inconsistent_armour_material == 'none':
+                    pass
+                else:
+                    armour_set.append(Armour.get_random_armour(rarity, armour_type, inconsistent_armour_material))
+            else:
+                armour_set.append(Armour.get_random_armour(rarity, armour_type, armour_material))
+
+        return armour_set

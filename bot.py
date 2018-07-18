@@ -1,6 +1,7 @@
 import logging
 import discord
 import asyncio
+import random
 import os
 import pickle
 import items
@@ -35,10 +36,9 @@ async def on_ready():
 
 @client.event
 async def on_message(message):
-    print(message.author.name)
-    if message.channel.name == 'memes' or message.channel.name == 'memedumps':
-        pass
-    elif message.content.startswith('!test'):
+    if message.content.startswith(prefix):
+        print(message.author.name)
+    if message.content.startswith(prefix + 'test'):
         counter = 0
         tmp = await client.send_message(message.channel, 'Calculating messages...')
         async for log in client.logs_from(message.channel, limit=100):
@@ -46,10 +46,12 @@ async def on_message(message):
                 counter += 1
 
         await client.edit_message(tmp, 'You have {} messages.'.format(counter))
-    elif message.content.startswith('!weapon'):
+    elif message.content.startswith(prefix + 'weapon'):
         await client.send_message(message.channel, str(items.Weapon.get_random_weapon(items.Item.get_item_rarity())))
-    elif message.content.startswith('!armour'):
+    elif message.content.startswith(prefix + 'armour'):
         await client.send_message(message.channel, str(items.Armour.get_random_armour(items.Item.get_item_rarity())))
+    elif message.content.startswith(prefix + 'enemy'):
+        await client.send_message(message.channel, str(enemies.Enemy.get_random_enemy()))
 
 print(items.Item.test_item_balance('weapon', None, 10000))
 
@@ -58,4 +60,4 @@ while i <= 10:
     print(items.Weapon.get_random_weapon())
     i += 1
 
-client.run("NDU4NDY2NzUwOTkzMDA2NTk0.DigNdg.gWBlaevMP_wcIKd0CuOzT0ZhVp4")
+client.run(token)
