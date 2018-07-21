@@ -1,12 +1,12 @@
 import logging
 import discord
-import asyncio
 import random
 import os
-import pickle
 import items
-import enemies
 import player
+import tests
+
+tests.run_tests()
 
 logging.basicConfig(level=logging.INFO)
 
@@ -51,13 +51,13 @@ async def on_message(message):
     elif message.content.startswith(prefix + 'armour'):
         await client.send_message(message.channel, str(items.Armour.get_random_armour(items.Item.get_item_rarity())))
     elif message.content.startswith(prefix + 'enemy'):
-        await client.send_message(message.channel, str(enemies.Enemy.get_random_enemy()))
+        await client.send_message(message.channel, str(player.EnemyHumanoid.get_random_enemy()))
 
-print(items.Item.test_item_balance('weapon', None, 10000))
+# print(items.Item.test_item_balance('weapon', None, 10000))
 
-i = 1
-while i <= 10:
-    print(items.Weapon.get_random_weapon())
-    i += 1
+# i = 1
+# while i <= 10:
+#     print(items.Weapon.get_random_weapon())
+#     i += 1
 
 client.run(token)
