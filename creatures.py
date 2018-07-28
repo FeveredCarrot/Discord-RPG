@@ -1,9 +1,30 @@
+import logging
 import random
 import items
+from game import GameObject
+from game import Vector2
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+logger.propagate = False
+
+stream_formatter = logging.Formatter('%(levelname)s:%(message)s')
+file_formatter = logging.Formatter('%(levelno)s:%(asctime)s:%(message)s')
+
+file_handler = logging.FileHandler('bot.log')
+file_handler.setFormatter(file_formatter)
+
+stream_handler = logging.StreamHandler()
+stream_handler.setFormatter(stream_formatter)
+
+logger.addHandler(stream_handler)
+logger.addHandler(file_handler)
 
 
-class Creature(items.Item):
-    def __init__(self, stats, level, inventory):
+class Creature(GameObject):
+    """Representation of a living entity"""
+    def __init__(self, stats, level, inventory, position=None):
+        super().__init__(position)
         self.level = level
         self.inventory = inventory
 
@@ -13,7 +34,6 @@ class Creature(items.Item):
         self.speed = stats['speed']
         self.maxap = stats['maxap']
         self.ap = 0
-
 
     @property
     def stat_dict(self):
@@ -26,16 +46,95 @@ class Creature(items.Item):
         }
         return stats
 
-    def apply_stats(self, stats):
+    @stat_dict.setter
+    def stat_dict(self, stats):
         self.hp = stats['hp']
         self.height = stats['height']
         self.weight = stats['weight']
         self.speed = stats['speed']
         self.ap = stats['ap']
 
+    @property
+    def inventory_value(self):
+        inventory_value = 0
+        for item in self.inventory:
+            inventory_value += item.item_stats['total_value']
+        return inventory_value
+
+    @property
+    def power_level(self):
+        return int(self.hp * self.maxap * (self.speed / 10) * self.inventory_value)
+
+    @staticmethod
+    def power_sort_key(creature):
+        return creature.power_level
+
+    @classmethod
+    def generate_enemies(cls, level=None, total_enemies=None, enemy_distribution=None):
+        """
+        TODO: Include enemy creatures, add enemy type modifiers
+        Generates a list of enemies
+
+        level: The average level of the enemies
+        total_enemies: total power level of the enemies
+        enemy_distribution: higher value means higher level but fewer number of enemies
+
+        """
+        if not level:
+            level = GameObject.get_level() * 10
+
+        if not total_enemies:
+            total_enemies = (level**2 * GameObject.get_level()**2 * 0.1) - (GameObject.get_level()**2)
+
+        if not enemy_distribution:
+            enemy_distribution = random.uniform(0.5, 2)
+
+        enemy_list = []
+        enemy_tries = 0
+        while total_enemies > level and enemy_tries < 100:
+            enemy_level = (level / 10) * (enemy_distribution - GameObject.zero_to_range(enemy_distribution / 2))
+            enemy_instance = EnemyHumanoid.get_random_enemy(enemy_level)
+
+            total_enemies -= enemy_instance.power_level
+            # print(f'DEBUG --- {enemy_instance.power_level}')
+            if total_enemies < 50:
+                total_enemies += enemy_instance.power_level
+                enemy_distribution -= 0.1
+            else:
+                enemy_list.append(enemy_instance)
+            total_enemies = int(total_enemies)
+
+            enemy_tries += 1
+
+        return enemy_list
+
+    def attack(self, weapon, target):
+        """
+        TODO: Finish
+        """
+        if type(target) != Creature:
+            raise Exception('Invalid Target Type. Target must inherit from creature!')
+        if type(weapon) != items.Weapon:
+            raise Exception('Invalid weapon. Weapon must be Weapon or inherit from Weapon')
+
+        dmg_to_resistance_dict = {}         # keys are dmg_type, values are resistance_type
+        dmg_to_multiplier_dict = {}         # keys are dmg_type, values are dmg multiplier
+        i = 0
+        while i < len(items.Armour.armour_resistance_types) - 1:
+            dmg_to_resistance_dict[items.Weapon.dmg_type_list[i]] = items.Armour.armour_resistance_types[i]
+            dmg_to_multiplier_dict[items.Weapon.dmg_type_list[i]] = items.Armour.armour_multiplier_types[i]
+
+        total_dmg = 0
+        for dmg_type in dmg_to_resistance_dict:
+            damage_dealt = (weapon.item_stats[dmg_type] - target.combined_armour_stats[dmg_to_resistance_dict[dmg_type]]) * target.combined_armour_stats[dmg_to_multiplier_dict[dmg_type]]
+            target.hp -= damage_dealt
+            total_dmg += damage_dealt
+            logger.info(f'{self.name} dealt {damage_dealt} {dmg_type} to {target.name}')
+        logger.info(f'Total damage: {total_dmg}')
+
 
 class Humanoid(Creature):
-    """Base humanoid class"""
+    """Representation of a humanoid creature"""
     def __init__(self, stats, name, level, inventory):
         super().__init__(stats, level, inventory)
         self.name = name
@@ -49,17 +148,15 @@ class Humanoid(Creature):
     @property
     def stat_dict(self):
         stats = {
-            'hp': self.hp,
-            'height': self.height,
-            'weight': self.weight,
             'arm_length': self.weight,
             'speed': self.speed,
             'weapon_slots': self.weapon_slots,
             'armour_slots': self.armour_slots,
         }
-        return stats
+        return {**stats, **super().stat_dict}
 
-    def apply_stats(self, stats):
+    @stat_dict.setter
+    def stat_dict(self, stats):
         super().apply_stats(stats)
         self.arm_length = stats['arm_length']
         self.weapon_slots = stats['weapon_slots']
@@ -75,8 +172,42 @@ class Humanoid(Creature):
             armour_type = armour_part.item_stats['armour_type']
             self.armour_slots[armour_type] = armour_part
 
-    def attack(self, weapon, target):
-        pass
+    @property
+    def combined_armour_stats(self):
+        total_armour_stats = {}
+        for slot in self.armour_slots:
+
+            armour_piece = self.armour_slots[slot]
+            for armour_stat in armour_piece.item_stats:
+                total_armour_stats[armour_stat] += armour_piece.item_stats[armour_stat]
+
+        return total_armour_stats
+
+    @property
+    def combined_armour_value(self):
+        combined_armour_value = 0
+        for slot in self.armour_slots:
+
+            armour_piece = self.armour_slots[slot]
+            if armour_piece:
+                combined_armour_value += armour_piece.item_stats['total_value']
+
+        return combined_armour_value
+
+    @property
+    def combined_weapon_value(self):
+        combined_weapon_value = 0
+        for slot in self.weapon_slots:
+
+            weapon = self.weapon_slots[slot]
+            if weapon:
+                combined_weapon_value += weapon.item_stats['total_value']
+
+        return combined_weapon_value
+
+    @property
+    def power_level(self):
+        return int(self.hp + self.level + self.inventory_value + self.combined_armour_value + self.combined_weapon_value + self.maxap + self.arm_length + self.speed * 2)
 
 
 class Player(Humanoid):
@@ -155,22 +286,20 @@ class EnemyHumanoid(Humanoid):
         armour_slots = self.armour_slots
         for armour in armour_slots:
             if armour_slots[armour]:
-                enemy_stat_string += f'Level {str(int(armour_slots[armour].item_stats["rarity"] * 10))} {armour_slots[armour].name},\n'
+                enemy_stat_string += f'Level ' \
+                                     f'{str(int(armour_slots[armour].item_stats["rarity"] * 10))} ' \
+                                     f'{armour_slots[armour].name},\n'
         enemy_stat_string += '\n'
 
         for stat in self.stat_dict:
             if type(self.stat_dict[stat]) == int or type(self.stat_dict[stat]) == float:
                 enemy_stat_string += f'{stat} -- {str(self.stat_dict[stat])}\n'
+
         return enemy_stat_string
 
     @property
     def stat_dict(self):
         stats = {
-            'hp': self.hp,
-            'height': self.height,
-            'weight': self.weight,
-            'arm_length': self.weight,
-            'speed': self.speed,
             'skill': self.skill,
             'aggression': self.aggression,
             'courage': self.courage,
@@ -179,9 +308,10 @@ class EnemyHumanoid(Humanoid):
             'enemy_type': self.enemy_type,
             'enemy_class': self.enemy_class
         }
-        return stats
+        return {**stats, **super().stat_dict}
 
-    def apply_stats(self, stats):
+    @stat_dict.setter
+    def stat_dict(self, stats):
         super().apply_stats(stats)
         self.skill = stats['skill']
         self.aggression = stats['aggression']
@@ -194,11 +324,15 @@ class EnemyHumanoid(Humanoid):
     @classmethod
     def get_random_enemy(cls, level=None, enemy_type=None, enemy_class=None):
         if not level:
-            level = items.Item.get_item_rarity()
+            level = items.Item.get_level()
         if not enemy_type:
             enemy_type = cls.enemy_list[random.randint(0, len(cls.enemy_list) - 1)]
         if not enemy_class:
             enemy_class = cls.enemy_class_list[random.randint(0, len(cls.enemy_class_list) - 1)]
+
+        if level < 0.1:
+            level = 0.1
+            logger.debug('Enemy has level less than 1')
 
         inventory = []
 
@@ -384,12 +518,12 @@ class EnemyHumanoid(Humanoid):
         enemy_stats['fear'] = 0
         enemy_stats['courage'] = int(enemy_stats['courage'])
         enemy_stats['skill'] = int(enemy_stats['skill'])
-        level = int(level * 10)
         enemy_stats['height'] = round(enemy_stats['height'], 2)
         enemy_stats['arm_length'] = round(enemy_stats['height'] * (2/5) * items.Item.get_skew_multiplier(10), 2)
         enemy_stats['hp'] = int(enemy_stats['hp'])
         enemy_stats['weight'] = round(enemy_stats['weight'], 1)
         enemy_stats['max_hp'] = enemy_stats['hp']
+        level = int(level * 10)
 
         enemy_instance = cls(enemy_stats, enemy_name, level, inventory)
         enemy_instance.equip_armour(armour_list)
@@ -410,6 +544,7 @@ class EnemyHumanoid(Humanoid):
 
 
 class EnemyCreature(Creature):
+    # TODO Add enemy creatures
     def __init__(self, enemy_stats, level, inventory):
         super().__init__(enemy_stats, level, inventory)
 
