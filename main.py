@@ -336,7 +336,7 @@ async def on_message(message):
             player_weapon = items.Weapon.get_random_weapon(random.uniform(0.03, 0.08), 'bow')
 
             player_armour = items.Armour.get_armour_set(random.uniform(0.03, 0.08), 'leather',
-                                                        ['cloth', 'leather'], 0.7)
+                                                        ['cloth'], 0.7)
 
             player_stats['weapon_slots'] = {'left_hand': None, 'right_hand': player_weapon}
 
@@ -374,7 +374,7 @@ async def on_message(message):
             player_weapon = items.Weapon.get_random_weapon(random.uniform(0.03, 0.08), 'axe')
 
             player_armour = items.Armour.get_armour_set(random.uniform(0.03, 0.08), 'leather',
-                                                        ['leather', 'chainmail', 'iron', 'bronze', 'steel'], 0.5)
+                                                        ['chainmail', 'iron', 'bronze', 'steel'], 0.5)
 
             player_stats['weapon_slots'] = {'left_hand': None, 'right_hand': player_weapon}
 
@@ -398,7 +398,20 @@ async def on_message(message):
             player_weapon = items.Weapon.get_random_weapon(random.uniform(0.03, 0.08), 'caestus')
 
             player_armour = items.Armour.get_armour_set(random.uniform(0.03, 0.08), 'leather',
-                                                        ['leather', 'chainmail', 'iron', 'bronze', 'steel'], 0.7)
+                                                        ['chainmail', 'iron', 'bronze', 'steel'], 0.7)
+
+            player_stats['weapon_slots'] = {'left_hand': None, 'right_hand': player_weapon}
+
+            player_stats['armour_slots'] = {'helmet': None, 'chestpiece': None,
+                                            'arm guards': None, 'gloves': None, 'leggings': None}
+
+        elif player_class == 'viking':
+            player_stats['player_class'] = 'viking'
+            player_stats['hp'] = int(player_stats['hp'] * 1.2)
+            player_weapon = items.Weapon.get_random_weapon(random.uniform(0.03, 0.08), 'axe')
+
+            player_armour = items.Armour.get_armour_set(random.uniform(0.03, 0.08), 'leather',
+                                                        ['chainmail', 'iron', 'wooden'], 0.7)
 
             player_stats['weapon_slots'] = {'left_hand': None, 'right_hand': player_weapon}
 
