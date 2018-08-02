@@ -23,13 +23,14 @@ logger.addHandler(file_handler)
 
 
 class Room:
-    def __init__(self, level, size_vector, doors, biome, items, enemies):
+    def __init__(self, level, size_vector, doors, biome, items, enemies, position):
         self.level = level
         self.size_vector = size_vector
         self.doors = doors
         self.biome = biome
         self.items = items
         self.enemies = enemies
+        self.position = position
 
     biome_list = ('dungeon',)
     dungeon_adjectives = ('cold', 'dark', 'stone', 'wet', 'mossy', 'moldy')
@@ -48,6 +49,37 @@ class Room:
         for enemy in self.enemies:
             enemy_power += enemy.power_level
         return enemy_power
+
+    @property
+    def total_loot(self):
+        loot_value = 0
+        for item in self.items:
+            loot_value += item.item_stats['total_value']
+        return loot_value
+
+    def json_readable(self):
+        item_list = []
+        for item in self.items:
+            item_list.append(item.json_readable())
+
+        enemy_list = []
+        for enemy in self.enemies:
+            enemy_list.append(enemy.json_readable())
+
+        if self.position:
+            position = self.position.json_readable()
+        else:
+            position = None
+
+        return {
+            'level': self.level,
+            'size_vector': self.size_vector.json_readable(),
+            'doors': self.doors,
+            'biome': self.biome,
+            'items': item_list,
+            'enemies': enemy_list,
+            'position': position
+        }
 
     def __str__(self):
         room_string = f'Room level: {self.level}\n' \
@@ -80,37 +112,39 @@ class Room:
         return room_string
 
     def __repr__(self):
-        room_string = f'Room level: {self.level}\n' \
-                      f'Total loot value: {total_loot}\n' \
-                      f'Loot distribution: {loot_distribution}\n' \
-                      f'Number of items: {len(loot_list)}\n' \
-                      f'---------------\n'
+        return f'Room: level {self.level}\n' \
+               f'Items: {len(self.items)}\n' \
+               f'Enemies: {len(self.enemies)}\n'
 
-        chest_list = []
-        for item in self.items:
-            if type(item) is not items.Chest:
-                room_string += f'Value {item.total_value} - {str(item)}\n'
-            else:
-                chest_list.append(item)
+    @classmethod
+    def load_from_save(cls, attribute_dict):
+        size_vector = Vector2.load_from_save(attribute_dict['size_vector'])
+        position = Vector2.load_from_save(attribute_dict['position'])
 
-        room_string += '---------------\n' \
-                       'Chests:'
+        item_list = []
+        for item in attribute_dict['items']:
+            if item['item_stats']['item_type'] in items.Armour.armour_materials:
+                item_list.append(items.Armour.load_from_save(item))
 
-        for chest in chest_list:
-            room_string += f'{chest.material} chest holding\n'
-            for item in chest.inventory:
-                room_string += f'Value {item.total_value} -- {str(item)}\n'
+            elif item['item_stats']['item_type'] in items.Weapon.weapon_types:
+                item_list.append(items.Weapon.load_from_save(item))
 
-        room_string += f'---------------\n' \
-                       f'Total enemy power: {danger}\n' \
-                       f'Enemy distribution\n' \
-                       f'Enemies:\n' \
-                       f'---------------\n'
+            elif item['item_stats']['item_type'] == 'chest':
+                item_list.append(items.Chest.load_from_save(item))
 
-        for enemy in self.enemies:
-            room_string += f'Power level {enemy.power_level} -- {enemy}\n'
+        enemy_dict = []
+        for enemy in attribute_dict['enemies']:
+            enemy_dict.append(creatures.EnemyHumanoid.load_from_save(enemy))
 
-        return room_string
+        return cls(
+            attribute_dict['level'],
+            size_vector,
+            attribute_dict['doors'],
+            attribute_dict['biome'],
+            item_list,
+            enemy_dict,
+            position
+        )
 
     @classmethod
     def generate_room(
@@ -122,7 +156,8 @@ class Room:
             total_loot=None,
             biome=None,
             enemy_distribution=None,
-            loot_distribution=None):
+            loot_distribution=None,
+            position=None):
 
         if not doors:
             doors = {
@@ -181,6 +216,10 @@ class Room:
             chest.inventory.sort(key=items.Item.value_sort_key, reverse=True)
             loot_list.append(chest)
 
+        for item in loot_list:
+            item.position = Vector2(random.randint(0, size_vector.x),
+                                     random.randint(0, size_vector.y))
+
         enemy_list = creatures.EnemyHumanoid.generate_enemies(level, enemy_power, enemy_distribution)
         enemy_list.sort(key=creatures.Creature.power_sort_key, reverse=True)
 
@@ -188,10 +227,26 @@ class Room:
             enemy.position = Vector2(random.randint(0, size_vector.x),
                                      random.randint(0, size_vector.y))
 
-
-        room_instance = cls(level, size_vector, doors, biome, loot_list, enemy_list)
+        room_instance = cls(level, size_vector, doors, biome, loot_list, enemy_list, position)
         return room_instance
 
 
-for i in range(0, 10):
-    logger.debug(Room.generate_room(None, None, (i+1) * 10))
+class Map:
+    """Holds multiple rooms and their relation to each other"""
+    def __init__(self, room_list=[]):
+        self.room_list = room_list
+
+    @classmethod
+    def generate_map(cls, map_size=None, biome=None):
+        """TODO: Finish"""
+        if not map_size:
+            map_size = random.randint(5, 20)
+
+        if not biome:
+            biome = Room.biome_list[random.randint(0, len(Room.biome_list) - 1)]
+
+        room_list = [Room.generate_room(
+            doors={'north': True,'south': False,'east': False,'west': False,},
+            position=Vector2.zero)]
+        for room in map_size:
+            pass

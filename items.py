@@ -53,6 +53,19 @@ class Item(GameObject):
     def __repr__(self):
         return self.name
 
+    def json_readable(self):
+        if self.position:
+            position = self.position.json_readable()
+        else:
+            position = None
+
+        return {
+            'name': self.name,
+            'item_stats': self.item_stats,
+            'position': position,
+            'adjectives': self.adjectives
+        }
+
     @property
     def total_value(self):
         return self.item_stats['rarity'] * 50
@@ -77,7 +90,8 @@ class Item(GameObject):
             loot_distribution = random.uniform(0.5, 2)
 
         loot_list = []
-        while total_loot > 0:
+        try_num = 0
+        while total_loot > 0 and try_num < 100:
             item_type = cls.item_types[random.randint(0, len(cls.item_types) - 1)]
             item_rarity = (level / 10) * (loot_distribution - cls.zero_to_range(loot_distribution / 2))
 
@@ -102,10 +116,20 @@ class Item(GameObject):
                 loot_distribution -= 0.05
                 # print(f'Loot distribution: {loot_distribution}\n')
             total_loot = int(total_loot)
+            try_num += 1
 
         loot_list.sort(reverse=True, key=cls.rarity_sort_key)
 
         return loot_list
+
+    @classmethod
+    def load_from_save(cls, attribute_dict):
+        position = None
+        if attribute_dict['position']:
+            position = Vector2.load_from_save(attribute_dict['position'])
+
+        return cls(attribute_dict['name'], attribute_dict['item_stats'],
+                   position, attribute_dict['adjectives'])
 
     @staticmethod
     def test_item_balance(item_classification, item_type=None, sample_size=1000):
@@ -218,8 +242,6 @@ class Weapon(Item):
     def __init__(self, name, weapon_stats, position=None, adjectives=None):
         super().__init__(name, weapon_stats, position, adjectives)
 
-        self.item_stats = weapon_stats
-
         self.item_stats['total_dmg'] = 0
         for dmg_type in weapon_stats:
             if dmg_type in Weapon.dmg_type_list:
@@ -241,12 +263,12 @@ class Weapon(Item):
             weapon_stat_string += f'{dmg_type} -- {str(self.useful_dmg_values[dmg_type])}\n'
         return weapon_stat_string
 
-    def __repr__(self):
-        weapon_stat_string = self.__str__()
-        weapon_stat_string = f'Dmg per AP value -- ' \
-                             f'{str(round(self.item_stats["total_dmg"] / self.item_stats["ap"], 1))} ' \
-                             f'{weapon_stat_string}'
-        return weapon_stat_string
+    # def __repr__(self):
+    #     weapon_stat_string = self.__str__()
+    #     weapon_stat_string = f'Dmg per AP value -- ' \
+    #                          f'{str(round(self.item_stats["total_dmg"] / self.item_stats["ap"], 1))} ' \
+    #                          f'{weapon_stat_string}'
+    #     return weapon_stat_string
 
     @property
     def total_value(self):
@@ -771,15 +793,14 @@ class Armour(Item):
 
     armour_value_multiplier = 2
 
-    def __init__(self, name, armour_values):
-
-        super().__init__(name, armour_values)
+    def __init__(self, name, armour_values, position=None, adjectives=None):
+        super().__init__(name, armour_values, position, adjectives)
         self.name = name
         self.item_stats = armour_values
         self.useful_resistances = {}
         self.useful_multipliers = {}
         self.item_stats['total_value'] = self.total_value
-        self.adjectives = self.item_stats['adjectives']
+        self.adjectives = adjectives
 
         for value in self.item_stats:
             if value in Armour.armour_resistance_types:
@@ -789,9 +810,9 @@ class Armour(Item):
                 if self.item_stats[value] > 1:
                     self.useful_multipliers[value] = str(self.item_stats[value])
 
-    def __repr__(self):
-        weapon_stat_string = self.__str__()
-        return 'Armour Value -- ' + str(self.item_stats['total_value']) + ' | ' + weapon_stat_string
+    # def __repr__(self):
+    #     weapon_stat_string = self.__str__()
+    #     return 'Armour Value -- ' + str(self.item_stats['total_value']) + ' | ' + weapon_stat_string
 
     def __str__(self):
         armour_stat_string = ''
@@ -1021,7 +1042,7 @@ class Armour(Item):
         armour_stats['ap'] = 10
         armour_stats['armour_type'] = armour_type
         armour_stats['armour_material'] = armour_material
-        armour_stats['adjectives'] = []
+        adjectives = []
         rarity_scaling_exponential = rarity**1.6
 
         for resistance_type in armour_stats:
@@ -1048,12 +1069,12 @@ class Armour(Item):
                         adjective_list = ['blessed', 'encanted', 'magical', 'dark']
 
                     adjective = adjective_list[random.randint(0, len(adjective_list) - 1)]
-                    armour_stats['adjectives'].append(adjective)
+                    adjectives.append(adjective)
                     armour_name = f'{adjective} {armour_name}'
 
         if (armour_stats['total_value'] / armour_stats['weight_modifier']) < 10:
             adjective = Item.boring_adjectives[random.randint(0, len(Item.boring_adjectives) - 1)]
-            armour_stats['adjectives'].append(adjective)
+            adjectives.append(adjective)
             armour_name = f'{adjective} {armour_name}'
 
         if (armour_stats['total_value'] / armour_stats['weight_modifier']) / rarity_scaling_exponential > 10 and rarity > 2.5:
@@ -1080,15 +1101,15 @@ class Armour(Item):
             ]
             armour_name += armour_titles[random.randint(0, len(armour_titles) - 1)]
 
-        return cls(armour_name, armour_stats)
+        return cls(armour_name, armour_stats, None, adjectives)
 
     @staticmethod
-    def get_armour_set(rarity=None, armour_material=None, armour_material_list=None, consistency=None):
+    def get_armour_set(rarity=None, main_armour_material=None, armour_material_list=None, consistency=None):
         if not rarity:
             rarity = GameObject.get_level()
 
-        if not armour_material:
-            armour_material = Armour.armour_materials[random.randint(0, len(Armour.armour_materials) - 1)]
+        if not main_armour_material:
+            main_armour_material = Armour.armour_materials[random.randint(0, len(Armour.armour_materials) - 1)]
 
         if not armour_material_list:
             armour_material_list = list(Armour.armour_materials)
@@ -1113,7 +1134,7 @@ class Armour(Item):
                 else:
                     armour_set.append(Armour.get_random_armour(rarity, armour_type, inconsistent_armour_material))
             else:
-                armour_set.append(Armour.get_random_armour(rarity, armour_type, armour_material))
+                armour_set.append(Armour.get_random_armour(rarity, armour_type, main_armour_material))
 
         return armour_set
 
@@ -1122,17 +1143,21 @@ class Chest(Item):
 
     chest_materials = ('wooden', 'iron', 'bronze', 'steel')
 
-    def __init__(self, material=None, inventory=[], capacity=None):
-        super().__init__('Chest', {})
+    def __init__(self, material=None, inventory=[], capacity=None, position=None, adjectives=None):
         if not material:
             material = self.chest_materials[random.randint(0, len(self.chest_materials) - 1)]
         if not capacity:
             capacity = 500
-        self.name = f'{material} chest'
+        if not adjectives:
+            adjectives = ('old', 'rusty', 'moldy', 'worn-down', 'overgrown', material)
+
         self.material = material
         self.inventory = inventory
         self.capacity = capacity
-        self.adjectives = ('old', 'rusty', 'moldy', 'worn-down', 'overgrown', material)
+        self.name = f'{material} chest',
+        self.item_stats = {'item_type': 'chest', 'total_value': self.total_value}
+        self.position = position
+        self.adjectives = adjectives
 
     def __str__(self):
         chest_string = self.name
@@ -1144,8 +1169,48 @@ class Chest(Item):
         for item in self.inventory:
             chest_string += str(item)
 
+    def json_readable(self):
+        item_list = []
+        for item in self.inventory:
+            item_list.append(item.json_readable())
+
+        return {
+            'material': self.material,
+            'inventory': item_list,
+            'capacity': self.capacity,
+            'item_stats': self.item_stats,
+            'position': self.position.json_readable(),
+            'adjectives': self.adjectives
+        }
+
+    @classmethod
+    def load_from_save(cls, attribute_dict):
+        position = Vector2.load_from_save(attribute_dict['position'])
+        item_list = []
+        for item in attribute_dict['inventory']:
+            if item['item_stats']['item_type'] in Armour.armour_materials:
+                item_list.append(Armour.load_from_save(item))
+
+            elif item['item_stats']['item_type'] in Weapon.weapon_types:
+                item_list.append(Weapon.load_from_save(item))
+
+        return cls(
+            attribute_dict['material'],
+            item_list,
+            attribute_dict['capacity'],
+            position,
+            attribute_dict['adjectives'])
+
     @classmethod
     def generate_chest(cls, level=None, total_loot=None, loot_distribution=None):
+        """
+        Returns a chest filled with loot
+
+        level : the average level of the loot
+        total_loot : the total value of the loot
+        loot_distribution: higher value means fewer but higher level items
+
+        """
         if not level:
             level = cls.get_level() * 10
 
@@ -1159,9 +1224,9 @@ class Chest(Item):
 
     @property
     def total_value(self):
+        """Returns the total value of all the items in the chest's inventory"""
         chest_value = 0
         for item in self.inventory:
             chest_value += item.total_value
 
         return int(chest_value)
-

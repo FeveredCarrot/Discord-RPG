@@ -31,18 +31,21 @@ class Creature(GameObject):
         self.hp = stats['hp']
         self.height = stats['height']
         self.weight = stats['weight']
+        self.carry_capacity = stats['carry_capacity']
         self.speed = stats['speed']
-        self.maxap = stats['maxap']
-        self.ap = 0
+        self.max_ap = stats['max_ap']
+        self.ap = self.max_ap
 
     @property
     def stat_dict(self):
         stats = {
             'hp': self.hp,
             'height': self.height,
+            'carry_capacity': self.carry_capacity,
             'weight': self.weight,
             'speed': self.speed,
-            'ap': self.ap
+            'ap': self.ap,
+            'max_ap': self.max_ap
         }
         return stats
 
@@ -51,7 +54,9 @@ class Creature(GameObject):
         self.hp = stats['hp']
         self.height = stats['height']
         self.weight = stats['weight']
+        self.carry_capacity = stats['carry_capacity']
         self.speed = stats['speed']
+        self.max_ap = stats['max_ap']
         self.ap = stats['ap']
 
     @property
@@ -62,12 +67,32 @@ class Creature(GameObject):
         return inventory_value
 
     @property
+    def inventory_weight(self):
+        inventory_weight = 0
+        for item in self.inventory:
+            inventory_weight += item.item_stats['weight']
+        return inventory_weight
+
+    @property
     def power_level(self):
-        return int(self.hp * self.maxap * (self.speed / 10) * self.inventory_value)
+        return int(self.hp * self.max_ap * (self.speed / 10) * self.inventory_value)
 
     @staticmethod
     def power_sort_key(creature):
         return creature.power_level
+
+    def add_to_inventory(self, item):
+        """
+        Adds an item to the creature's inventory.
+        Returns True if successful, returns False if there is no room in inventory
+        """
+        if item.item_stats['weight'] <= self.carry_capacity - self.inventory_weight:
+            self.inventory.append(item)
+            del item
+            return True
+        else:
+            logger.debug(f'Creature cannot hold {item.name}')
+            return False
 
     @classmethod
     def generate_enemies(cls, level=None, total_enemies=None, enemy_distribution=None):
@@ -96,7 +121,6 @@ class Creature(GameObject):
             enemy_instance = EnemyHumanoid.get_random_enemy(enemy_level)
 
             total_enemies -= enemy_instance.power_level
-            # print(f'DEBUG --- {enemy_instance.power_level}')
             if total_enemies < 50:
                 total_enemies += enemy_instance.power_level
                 enemy_distribution -= 0.1
@@ -139,16 +163,46 @@ class Humanoid(Creature):
         super().__init__(stats, level, inventory)
         self.name = name
 
-        self.hp = stats['hp']
         self.arm_length = stats['arm_length']
-        self.speed = stats['speed']
         self.weapon_slots = stats['weapon_slots']
         self.armour_slots = stats['armour_slots']
+
+    def __str__(self):
+        player_string = f'{self.name} \n{self.stat_dict}'
+        return player_string
+
+    def json_readable(self):
+        item_list = []
+        for item in self.inventory:
+            item_list.append(item.json_readable())
+
+        stats = self.stat_dict
+        for slot in self.stat_dict['weapon_slots']:
+            if self.stat_dict['weapon_slots'][slot] and type(self.stat_dict['weapon_slots'][slot]) is items.Weapon:
+                self.stat_dict['weapon_slots'][slot] = self.stat_dict["weapon_slots"][slot].json_readable()
+
+        for slot in self.stat_dict['armour_slots']:
+            if self.stat_dict['armour_slots'][slot] and type(self.stat_dict['armour_slots'][slot]) is items.Armour:
+                self.stat_dict['armour_slots'][slot] = self.stat_dict['armour_slots'][slot].json_readable()
+
+        return {
+            'stats': stats,
+            'name': self.name,
+            'level': self.level,
+            'inventory': item_list
+        }
+
+    def describe(self, info_level):
+        """
+        Returns a string describing the player.
+        Info level is a float from 0 to 1 which changes how detailed the description is.
+        """
+        pass
 
     @property
     def stat_dict(self):
         stats = {
-            'arm_length': self.weight,
+            'arm_length': self.arm_length,
             'speed': self.speed,
             'weapon_slots': self.weapon_slots,
             'armour_slots': self.armour_slots,
@@ -190,6 +244,9 @@ class Humanoid(Creature):
 
             armour_piece = self.armour_slots[slot]
             if armour_piece:
+                if type(armour_piece) is dict:
+                    logger.debug('Armour is dict for some reason')
+                    armour_piece = items.Armour.load_from_save(armour_piece)
                 combined_armour_value += armour_piece.item_stats['total_value']
 
         return combined_armour_value
@@ -201,25 +258,72 @@ class Humanoid(Creature):
 
             weapon = self.weapon_slots[slot]
             if weapon:
+                if type(weapon) is dict:
+                    logger.debug('Weapon is dict for some reason')
+                    weapon = items.Weapon.load_from_save(weapon)
                 combined_weapon_value += weapon.item_stats['total_value']
 
         return combined_weapon_value
 
     @property
     def power_level(self):
-        return int(self.hp + self.level + self.inventory_value + self.combined_armour_value + self.combined_weapon_value + self.maxap + self.arm_length + self.speed * 2)
+        return int(self.hp + self.level + self.inventory_value + self.combined_armour_value + self.combined_weapon_value + self.max_ap + self.arm_length + self.speed * 2)
 
 
 class Player(Humanoid):
     """Representation of a player"""
-    def __init__(self, player_stats, name, level, inventory, skills):
-        super().__init__(player_stats, name, level, inventory)
+    def __init__(self, stats, name, level, inventory, player_id, skills):
+        super().__init__(stats, name, level, inventory)
 
+        self.player_id = player_id
         self.skills = skills
+        self.player_class = stats['player_class']
+
+    @property
+    def stat_dict(self):
+        stats = {
+            'player_id': self.player_id,
+            'skills': self.skills,
+            'player_class': self.player_class
+        }
+        return {**stats, **super().stat_dict}
+
+    @stat_dict.setter
+    def stat_dict(self, stats):
+        super().apply_stats(stats)
+        self.player_id = stats['player_id']
+        self.skills = stats['skills']
+        self.player_class = stats['player_class']
+
+    @classmethod
+    def load_from_save(cls, attribute_dict):
+        item_list = []
+        for item_dict in attribute_dict['inventory']:
+            item_list.append(items.Item.load_from_save(item_dict))
+
+        for slot in attribute_dict['stats']['weapon_slots']:
+            if attribute_dict['stats']['weapon_slots'][slot]:
+                attribute_dict['stats']['weapon_slots'][slot] = items.Weapon.load_from_save(attribute_dict['stats']['weapon_slots'][slot])
+
+        for slot in attribute_dict['stats']['armour_slots']:
+            if attribute_dict['stats']['armour_slots'][slot]:
+                attribute_dict['stats']['armour_slots'][slot] = items.Armour.load_from_save(attribute_dict['stats']['armour_slots'][slot])
+
+        return cls(
+            attribute_dict['stats'],
+            attribute_dict['name'],
+            attribute_dict['level'],
+            item_list,
+            attribute_dict['stats']['player_id'],
+            attribute_dict['stats']['skills']
+        )
 
 
 class EnemyHumanoid(Humanoid):
     """Representation of an enemy"""
+    hp_modifier = 1
+    ap_modifier = 5
+
     enemy_list = (
         'goblin',
         'ork',
@@ -251,13 +355,9 @@ class EnemyHumanoid(Humanoid):
     def __init__(self, enemy_stats, name, level, inventory):
         super().__init__(enemy_stats, name, level, inventory)
 
-        self.name = name
-        self.speed = enemy_stats['speed']
         self.skill = enemy_stats['skill']
         self.aggression = enemy_stats['aggression']
         self.courage = enemy_stats['courage']
-        self.weapon_slots = enemy_stats['weapon_slots']
-        self.armour_slots = enemy_stats['armour_slots']
         self.enemy_type = enemy_stats['enemy_type']
         self.enemy_class = enemy_stats['enemy_class']
 
@@ -322,6 +422,28 @@ class EnemyHumanoid(Humanoid):
         self.enemy_class = stats['enemy_class']
 
     @classmethod
+    def load_from_save(cls, attribute_dict):
+        logger.debug(f'Loading enemy from save...')
+        item_list = []
+        for item_dict in attribute_dict['inventory']:
+            item_list.append(items.Item.load_from_save(item_dict))
+
+        for slot in attribute_dict['stats']['weapon_slots']:
+            if attribute_dict['stats']['weapon_slots'][slot]:
+                attribute_dict['stats']['weapon_slots'][slot] = items.Weapon.load_from_save(attribute_dict['stats']['weapon_slots'][slot])
+
+        for slot in attribute_dict['stats']['armour_slots']:
+            if attribute_dict['stats']['armour_slots'][slot]:
+                attribute_dict['stats']['armour_slots'][slot] = items.Armour.load_from_save(attribute_dict['stats']['armour_slots'][slot])
+
+        return cls(
+            attribute_dict['stats'],
+            attribute_dict['name'],
+            attribute_dict['level'],
+            item_list,
+        )
+
+    @classmethod
     def get_random_enemy(cls, level=None, enemy_type=None, enemy_class=None):
         if not level:
             level = items.Item.get_level()
@@ -343,12 +465,12 @@ class EnemyHumanoid(Humanoid):
                 'hp': 75 * level_scale + 10,
                 'height': 1.05 * items.Item.get_skew_multiplier(10),
                 'weight': 80 * items.Item.get_skew_multiplier(20),
-                'is_humanoid': True,
                 'speed': 0.25,
                 'skill': 20,
                 'aggression': 65,
                 'courage': 50,
-                'maxap': 80 * level_scale + 10
+                'max_ap': 80,
+                'carry_capacity': 50 * level + 5
             }
             consonants = ['skr', 'skl', 'sl', 'jh', 'j\'r', 'j\'l', 'dr', 'dil', 'gr', 'gl', 'k', 'kr', 'kl']
             vowels = ['a', 'ah', 'e', 'eh', 'i', 'ih', 'u', 'uh', 'o', 'oh']
@@ -360,12 +482,12 @@ class EnemyHumanoid(Humanoid):
                 'hp': 150 * level_scale + 10,
                 'height': 2.2 * items.Item.get_skew_multiplier(20),
                 'weight': 175 * items.Item.get_skew_multiplier(20),
-                'is_humanoid': True,
                 'speed': 0.15,
                 'skill': 30,
                 'aggression': 65,
                 'courage': 70,
-                'maxap': 100 * level_scale + 10
+                'max_ap': 100,
+                'carry_capacity': 150 * level + 5
             }
             consonants = ['skr', 'skl', 'sl', 'jh', 'j\'r', 'j\'l', 'dr', 'dil', 'gr', 'gl', 'k', 'kr', 'kl']
             vowels = ['a', 'ah', 'e', 'eh', 'i', 'ih', 'u', 'uh', 'o', 'oh']
@@ -381,7 +503,8 @@ class EnemyHumanoid(Humanoid):
                 'skill': 50,
                 'aggression': 50,
                 'courage': 65,
-                'maxap': 90 * level_scale + 10
+                'max_ap': 90,
+                'carry_capacity': 100 * level + 5
             }
             consonants = items.Item.consonants
             vowels = items.Item.vowels
@@ -397,7 +520,8 @@ class EnemyHumanoid(Humanoid):
                 'skill': 20,
                 'aggression': 80,
                 'courage': 90,
-                'maxap': 50 * level_scale + 10
+                'max_ap': 50,
+                'carry_capacity': 80 * level + 5
             }
             consonants = ['gr', 'br', 'b', 'd', 'g', 'w']
             vowels = ['eeeh', 'yoo', 'yuuuh', 'e', 'ooooh', 'uuuhh', 'aaa', 'yaaa']
@@ -413,7 +537,8 @@ class EnemyHumanoid(Humanoid):
                 'skill': 60,
                 'aggression': 50,
                 'courage': 80,
-                'maxap': 65 * level_scale + 10
+                'max_ap': 65,
+                'carry_capacity': 65 * level + 5
             }
             consonants = ['spook', 'doot', 'scare', 'jiggle', 'bones', 'rattle', 'grim', 's', 'ed', 'er']
             vowels = ['e', 'y', 'ya', 'e', 'o', 'oo']
@@ -429,7 +554,8 @@ class EnemyHumanoid(Humanoid):
                 'skill': 60,
                 'aggression':  40,
                 'courage': 40,
-                'maxap': 110 * level_scale + 10
+                'max_ap': 110,
+                'carry_capacity': 100 * (level / 10) + 5
             }
             consonants = ['skr', 'r', 'kr', 'sh']
             vowels = ['aa', 'aaaa', 'ee', 'eeee', 'ii', 'iiii', 'rr', 'rrrr']
@@ -522,7 +648,9 @@ class EnemyHumanoid(Humanoid):
         enemy_stats['arm_length'] = round(enemy_stats['height'] * (2/5) * items.Item.get_skew_multiplier(10), 2)
         enemy_stats['hp'] = int(enemy_stats['hp'])
         enemy_stats['weight'] = round(enemy_stats['weight'], 1)
+        enemy_stats['carry_capacity'] = int(enemy_stats['carry_capacity'])
         enemy_stats['max_hp'] = enemy_stats['hp']
+        enemy_stats['max_ap'] = int(enemy_stats['max_ap'] * cls.ap_modifier * (level / 10) + 10)
         level = int(level * 10)
 
         enemy_instance = cls(enemy_stats, enemy_name, level, inventory)

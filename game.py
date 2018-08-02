@@ -18,6 +18,7 @@ stream_handler.setFormatter(stream_formatter)
 logger.addHandler(stream_handler)
 logger.addHandler(file_handler)
 
+
 class GameObject:
     stat_skew_percent = 10
 
@@ -45,7 +46,7 @@ class GameObject:
         'pa', 'pi', 'pu', 'pe', 'po', 'pya', 'pyu', 'pyo'
     )
 
-    def __init__(self, position=None, adjectives=['shiny']):
+    def __init__(self, position=None, adjectives=[]):
         self.position = position
         self.adjectives = adjectives
 
@@ -102,10 +103,12 @@ class GameObject:
 
     @staticmethod
     def rarity_sort_key(item):
+        """Sort by item rarity. For use with List.Sort()"""
         return item.item_stats['rarity']
 
     @staticmethod
     def value_sort_key(item):
+        """Sort by item value. For use with List.Sort()"""
         return item.total_value
 
     @staticmethod
@@ -120,8 +123,20 @@ class Vector2:
         self.x = x
         self.y = y
 
+    @property
+    def zero(self):
+        return Vector2(0, 0)
+
     def magnitude(self):
+        """Returns the length of the vector line"""
         return math.sqrt(abs(self.x**2) + abs(self.y**2))
+
+    def to_list(self):
+        return [self.x, self.y]
+
+    def json_readable(self):
+        """returns a json readable format"""
+        return {'x': self.x, 'y': self.y}
 
     def __str__(self):
         return str(self.to_list())
@@ -200,3 +215,9 @@ class Vector2:
                 self.y / other.position.y
             )
 
+    @classmethod
+    def load_from_save(cls, attribute_dict):
+        if attribute_dict:
+            return cls(attribute_dict['x'], attribute_dict['y'])
+        else:
+            return None
