@@ -7,9 +7,8 @@ import logging
 logger = logging.getLogger(__name__)
 if __name__ == '__main__':
     logger.setLevel(logging.INFO)
-else:
-    logger.setLevel(100)
-logger.propagate = False
+
+logger.propagate = True
 
 stream_formatter = logging.Formatter('%(levelname)s:%(message)s')
 file_formatter = logging.Formatter('%(levelno)s:%(asctime)s:%(message)s')
@@ -46,6 +45,7 @@ class Item(GameObject):
         super().__init__(position, adjectives)
         self.name = name
         self.item_stats = item_stats
+        self.known_stats = {}
 
     def __str__(self):
         return self.name
@@ -91,7 +91,7 @@ class Item(GameObject):
 
         loot_list = []
         try_num = 0
-        while total_loot > 0 and try_num < 100:
+        while total_loot > 0 and try_num < 50:
             item_type = cls.item_types[random.randint(0, len(cls.item_types) - 1)]
             item_rarity = (level / 10) * (loot_distribution - cls.zero_to_range(loot_distribution / 2))
 
@@ -266,9 +266,16 @@ class Weapon(Item):
     # def __repr__(self):
     #     weapon_stat_string = self.__str__()
     #     weapon_stat_string = f'Dmg per AP value -- ' \
-    #                          f'{str(round(self.item_stats["total_dmg"] / self.item_stats["ap"], 1))} ' \
+    #                          f'{str(round(self.item_stats["total_dmg"] / #self.item_stats["ap"], 1))} ' \
     #                          f'{weapon_stat_string}'
     #     return weapon_stat_string
+
+    def describe(self, info_level=1, context='close'):
+        """
+        Returns a string describing the item.
+        Info level is a float from 0 to 1 which changes how detailed the description is.
+        """
+        description = ''
 
     @property
     def total_value(self):
@@ -613,7 +620,7 @@ class Weapon(Item):
             weapon_type = Weapon.weapon_types[random.randint(0, len(Weapon.weapon_types) - 1)]
         if rarity < 0.1:
             rarity = 0.1
-            logger.warning('Weapon level is less than 1')
+            logger.debug('Weapon level is less than 1')
 
         rarity_scaling_exponential = pow(rarity, 2)
         weapon_name = weapon_type
@@ -1035,7 +1042,7 @@ class Armour(Item):
             armour_material = Armour.armour_materials[random.randint(0, len(Armour.armour_materials) - 1)]
         if rarity < 0.1:
             rarity = 0.1
-            logger.warning('Armour level is less than 1')
+            logger.debug('Armour level is less than 1')
 
         armour_stats = Armour.get_armour_values(rarity, armour_type, armour_material)
         armour_name = armour_material + ' ' + armour_type

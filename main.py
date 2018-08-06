@@ -27,19 +27,20 @@ stream_handler.setFormatter(stream_formatter)
 logger.addHandler(stream_handler)
 logger.addHandler(file_handler)
 
-# test.run_tests()
+test.run_tests()
 
 prefix = '--'
 token = ''
 
-save_file = f'{os.path.dirname(__file__)}/save_data.json'
-settings_file = f'{os.path.dirname(__file__)}/settings.json'
+save_file = f'{os.path.dirname(os.path.realpath(__file__))}/save_data.json'
+settings_file = f'{os.path.dirname(os.path.realpath(__file__))}/settings.json'
 
 settings = None
 save_data = None
 
 inspect_target = None
 player_list = []
+dead_player_list = []
 room_list = []
 
 last_message = None
@@ -73,12 +74,17 @@ async def save_game():
     for player in player_list:
         player_jsons.append(player.json_readable())
 
+    dead_player_jsons = []
+    for player in dead_player_list:
+        dead_player_jsons.append(player.json_readable())
+
     room_jsons = []
     for room in room_list:
         room_jsons.append(room.json_readable())
 
     save_dict = {
         'player_list': player_jsons,
+        'dead_player_list': dead_player_jsons,
         'room_list': room_jsons,
         'game_state': {}
     }
@@ -130,6 +136,7 @@ async def load_save():
         else:
             save_data = {
                 'player_list': [],
+                'dead_player_list': [],
                 'room_list': [],
                 'game_state': {}
             }
@@ -137,12 +144,12 @@ async def load_save():
             logger.warning('No save data found. Created blank save.')
 
 
-def get_command_arguments(message):
+def get_command_arguments(message_string):
     arguments = []
-    space_indexes = [len(message)]
+    space_indexes = [len(message_string)]
     i = 0
-    while i < len(message) - 1:
-        if message[i] == ' ':
+    while i < len(message_string) - 1:
+        if message_string[i] == ' ':
             space_indexes.append(i)
         i += 1
 
@@ -150,8 +157,8 @@ def get_command_arguments(message):
 
     i = 0
     while i < len(space_indexes) - 1:
-        if message[space_indexes[i] + 1:space_indexes[i+1]] != '':
-            arguments.append(message[space_indexes[i] + 1:space_indexes[i+1]])
+        if message_string[space_indexes[i] + 1:space_indexes[i + 1]] != '':
+            arguments.append(message_string[space_indexes[i] + 1:space_indexes[i + 1]])
         i += 1
     return arguments
 
@@ -160,7 +167,7 @@ async def auto_save(interval):
     while True:
         await asyncio.sleep(interval)
         await update_save_data()
-        await save_game(save_data)
+        await save_game()
 
 
 # async def get_reply(author_id):
@@ -239,7 +246,7 @@ async def on_message(message):
         if inspect_target:
             if type(inspect_target) == items.Weapon or type(inspect_target) == items.Armour or type(inspect_target) == creatures.EnemyHumanoid:
                 inspect_string = str(inspect_target)
-            elif type(inspect_target == room_list.Room):
+            elif type(inspect_target == rooms.Room):
                 for item in inspect_target.items:
                     if item.name == item_name:
                         inspect_string = str(item)
@@ -433,6 +440,23 @@ async def on_message(message):
     elif message.content.startswith(f'{prefix}poll'):
         pass
 
+    elif message.content.startswith(f'{prefix}map'):
+        arguments = get_command_arguments(message.content)
+        try:
+            map_size = int(arguments[0])
+            msg = await client.send_message(message.channel, f'Generating map of size {map_size}\n'
+                                                             f'This may take a moment...')
+            map_dungeon = await rooms.Map.generate_map(map_size, client=client, progress_message=msg)
+        except:
+            logger.debug('Invalid arguments')
+            map_size = random.randint(5, 30)
+            msg = await client.send_message(message.channel, f'Generating map of size {map_size}\n'
+                                                             f'This may take a moment...')
+            map_dungeon = await rooms.Map.generate_map(map_size, client=client, progress_message=msg)
+        finally:
+            map_dungeon.export_map_image('map.png')
+            await client.send_file(message.channel, f'{os.path.dirname(os.path.realpath(__file__))}/map.png')
+
     elif message.content.startswith(f'{prefix}shutdown'):
         logger.warning('Shutting down...')
         await client.send_message(message.channel, 'Shutting down...')
@@ -453,7 +477,7 @@ async def main():
     await load_settings()
     await load_save()
     loop = asyncio.get_event_loop()
-    auto_save_task = loop.create_task(auto_save(10))
+    auto_save_task = loop.create_task(auto_save(3600))
     client_start_task = loop.create_task(client.start(token))
     await asyncio.wait([auto_save_task, client_start_task])
 

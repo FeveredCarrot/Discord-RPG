@@ -5,9 +5,12 @@ from items import Armour
 from creatures import Player
 from creatures import EnemyHumanoid
 from rooms import Room
+from rooms import Map
+from game import Vector2
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.ERROR)
+if __name__ == '__main__':
+    logger.setLevel(logging.DEBUG)
 logger.propagate = False
 
 stream_formatter = logging.Formatter('%(levelname)s:%(message)s')
@@ -21,6 +24,7 @@ stream_handler.setFormatter(stream_formatter)
 
 logger.addHandler(stream_handler)
 logger.addHandler(file_handler)
+
 
 def item_rarity_test():
     Item.get_level()
@@ -80,12 +84,37 @@ def enemy_generation_test():
         EnemyHumanoid.get_random_enemy(None, None, enemy_class)
 
 
+def room_colision_test():
+    room_1 = Room.empty(Vector2(15, 5), Vector2(-10, 10))
+    room_2 = Room.empty(Vector2(15, 5), Vector2(-11, 14))
+    if not Map.check_collision(room_1, room_2):
+        logger.warning('Room colision not expected!')
+    room_2.position.y = 14
+    if not Map.check_collision(room_1, room_2):
+        logger.warning('Room collision expected!')
+
+
+def map_bounds_test():
+    room_list = [Room.empty(Vector2(15, 5), Vector2(15, -5)),
+                 Room.empty(Vector2(15, 5), Vector2(-10, 12)),
+                 Room.empty(Vector2(15, 5), Vector2(-11, 1))]
+
+    map_bounds = Map(None, None, room_list).get_map_bounds()
+    if list(map_bounds['position']) != [-11, -5]:
+        logger.warning('map position wrong')
+        print(map_bounds)
+    if list(map_bounds['dimensions']) != [41, 22]:
+        logger.warning('map dimentions wrong')
+
+
 def run_tests():
     item_rarity_test()
     item_name_test()
     item_skew_multiplier_test()
     item_get_attr_detr_value_test()
-    # item_balance_test_test()
+    item_balance_test_test()
     weapon_generation_test()
     armour_generation_test()
     enemy_generation_test()
+    room_colision_test()
+    map_bounds_test()

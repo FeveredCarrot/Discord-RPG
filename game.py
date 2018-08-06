@@ -3,8 +3,9 @@ import random
 import logging
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-logger.propagate = False
+if __name__ == '__main__':
+    logger.setLevel(logging.INFO)
+logger.propagate = True
 
 stream_formatter = logging.Formatter('%(levelname)s:%(message)s')
 file_formatter = logging.Formatter('%(levelno)s:%(asctime)s:%(message)s')
@@ -21,6 +22,8 @@ logger.addHandler(file_handler)
 
 class GameObject:
     stat_skew_percent = 10
+
+    directions = ('north', 'south', 'east', 'west')
 
     vowels = ('a', 'e', 'i', 'o', 'u')
 
@@ -46,9 +49,46 @@ class GameObject:
         'pa', 'pi', 'pu', 'pe', 'po', 'pya', 'pyu', 'pyo'
     )
 
+    uninteresting_adjectives = ('uninteresting', 'ordinary', 'boring', 'plain', 'unoriginal')
+
     def __init__(self, position=None, adjectives=[]):
         self.position = position
         self.adjectives = adjectives
+
+        if len(adjectives) == 0:
+            self.adjectives = GameObject.uninteresting_adjectives
+            [random.randint(0, len(GameObject.uninteresting_adjectives) - 1)]
+
+    @staticmethod
+    def progress_bar(percent=50, length=10):
+        if percent < 1:
+            percent *= 100
+
+        progress_string = ''
+
+        for _ in range(0, int(length)):
+            progress_string += '□'
+
+        for i in range(0, int(length * (int(percent) / 100))):
+            progress_string = progress_string[:i] + '■' + progress_string[i + 1:]
+
+        progress_string = f'[{progress_string}]'
+
+        return progress_string
+
+    @staticmethod
+    def opposite_direction(direction):
+        direction = direction.lower()
+        if direction == 'north':
+            return 'south'
+        elif direction == 'south':
+            return 'north'
+        elif direction == 'east':
+            return 'west'
+        elif direction == 'west':
+            return 'east'
+        else:
+            raise Exception('Not a valid direction!')
 
     @staticmethod
     def get_random_consonant(consonant_list=None):
@@ -123,8 +163,8 @@ class Vector2:
         self.x = x
         self.y = y
 
-    @property
-    def zero(self):
+    @staticmethod
+    def zero():
         return Vector2(0, 0)
 
     def magnitude(self):
@@ -145,7 +185,7 @@ class Vector2:
         return str(self)
 
     def __iter__(self):
-        return [self.x, self.y]
+        return iter([self.x, self.y])
 
     def __add__(self, other):
         if type(other) == Vector2:

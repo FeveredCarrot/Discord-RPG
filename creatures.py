@@ -5,8 +5,9 @@ from game import GameObject
 from game import Vector2
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-logger.propagate = False
+if __name__ == '__main__':
+    logger.setLevel(logging.INFO)
+logger.propagate = True
 
 stream_formatter = logging.Formatter('%(levelname)s:%(message)s')
 file_formatter = logging.Formatter('%(levelno)s:%(asctime)s:%(message)s')
@@ -23,8 +24,9 @@ logger.addHandler(file_handler)
 
 class Creature(GameObject):
     """Representation of a living entity"""
-    def __init__(self, stats, level, inventory, position=None):
+    def __init__(self, stats, name, level, inventory, position=None):
         super().__init__(position)
+        self.name = name
         self.level = level
         self.inventory = inventory
 
@@ -160,9 +162,8 @@ class Creature(GameObject):
 class Humanoid(Creature):
     """Representation of a humanoid creature"""
     def __init__(self, stats, name, level, inventory):
-        super().__init__(stats, level, inventory)
-        self.name = name
-
+        super().__init__(stats, name, level, inventory)
+        
         self.arm_length = stats['arm_length']
         self.weapon_slots = stats['weapon_slots']
         self.armour_slots = stats['armour_slots']
@@ -211,7 +212,7 @@ class Humanoid(Creature):
 
     @stat_dict.setter
     def stat_dict(self, stats):
-        super().apply_stats(stats)
+        super().stat_dict = stats
         self.arm_length = stats['arm_length']
         self.weapon_slots = stats['weapon_slots']
         self.armour_slots = stats['armour_slots']
@@ -290,7 +291,7 @@ class Player(Humanoid):
 
     @stat_dict.setter
     def stat_dict(self, stats):
-        super().apply_stats(stats)
+        super().stat_dict = stats
         self.player_id = stats['player_id']
         self.skills = stats['skills']
         self.player_class = stats['player_class']
@@ -340,7 +341,8 @@ class EnemyHumanoid(Humanoid):
         'samurai',
         'thug',
         'mage',
-        'brawler'
+        'brawler',
+        'viking'
     )
 
     legendary_humanoid_list = (
@@ -412,7 +414,7 @@ class EnemyHumanoid(Humanoid):
 
     @stat_dict.setter
     def stat_dict(self, stats):
-        super().apply_stats(stats)
+        super().stat_dict = stats
         self.skill = stats['skill']
         self.aggression = stats['aggression']
         self.courage = stats['courage']
@@ -578,7 +580,7 @@ class EnemyHumanoid(Humanoid):
 
         elif enemy_class == 'knight':
             # converting a list to a set removes duplicates
-            available_weapons = list(set(available_weapons + ['sword', 'axe', 'mace', 'greatsword', 'halberd','spear', 'glaive', 'katana', 'nodachi']))
+            available_weapons = list(set(available_weapons + ['sword', 'axe', 'mace', 'greatsword', 'halberd', 'spear', 'glaive', 'katana', 'nodachi']))
             available_armours = list(items.Armour.armour_materials)
             enemy_stats['courage'] *= 1.2
             enemy_stats['aggression'] *= 0.9
@@ -611,6 +613,14 @@ class EnemyHumanoid(Humanoid):
             available_weapons = ['caestus']
             available_armours = ['cloth', 'leather']
             enemy_stats['aggression'] *= 1.3
+
+        elif enemy_class == 'viking':
+            available_weapons += ['axe']
+            available_armours = ['leather', 'chainmail', 'wooden', 'iron']
+            enemy_stats['courage'] *= 1.1
+            enemy_stats['aggression'] *= 1.1
+            enemy_stats['skill'] *= 0.9
+            armour_consistency *= 0.7
 
         else:
             raise Exception(enemy_class + ' is not a valid class type!')
