@@ -1,16 +1,14 @@
-import items
-import creatures
-import random
+import datetime
 import logging
 import os
-import sys
-import asyncio
-import discord
-import datetime
+import random
+
+from PIL import Image
+
+import creatures
+import items
 from game import GameObject
 from game import Vector2
-from PIL import Image, ImageDraw
-from PIL import PSDraw
 
 logger = logging.getLogger(__name__)
 # if __name__ == '__main__':
@@ -176,6 +174,75 @@ class Room:
     def empty(cls, size_vector=Vector2.zero(), position=Vector2.zero()):
         return cls(None, size_vector, None, None, None, None, position, None, None)
 
+    def check_collision(self, room_2):
+        """
+            Checks if the left of room_1 is to the left of any part of room 2 and
+            Checks if the right of room_1 is to the right of any part of room 2 and
+            Checks if the bottom of room_1 is under any part of room 2 and
+            Checks if the top of room_1 is above any part of room 2
+        """
+        if (self.position.x < room_2.position.x + room_2.size_vector.x and
+                self.position.x + self.size_vector.x > room_2.position.x and
+                self.position.y < room_2.position.y + room_2.size_vector.y and
+                self.size_vector.y + self.position.y > room_2.position.y):
+
+            return True
+        else:
+            return False
+
+    def check_touching(self, room_2):
+        """
+            Checks if the left of room_1 is immediately to the left of any part of room 2 and
+            Checks if the right of room_1 is immediately to the right of any part of room 2 and
+            Checks if the bottom of room_1 is immediately under any part of room 2 and
+            Checks if the top of room_1 is immediately above any part of room 2
+        """
+        if (self.position.x < room_2.position.x + room_2.size_vector.x + 1 and
+                self.position.x + self.size_vector.x > room_2.position.x - 1 and
+                self.position.y < room_2.position.y + room_2.size_vector.y + 1 and
+                self.size_vector.y + self.position.y > room_2.position.y - 1):
+
+            return True
+        else:
+            return False
+
+    def check_horizontal_alignment(self, room_2):
+        """
+            Checks if the left of self is to the left of any part of room 2 and
+            Checks if the right of self is to the right of any part of room 2 and
+        """
+
+        if (self.position.x < room_2.position.x + room_2.size_vector.x and
+                self.position.x + self.size_vector.x > room_2.position.x):
+
+            return True
+        else:
+            return False
+
+    def check_vertical_alignment(self, room_2):
+        """
+            Checks if the bottom of self is under any part of room 2 and
+            Checks if the top of self is above any part of room 2
+        """
+
+        if (self.position.y < room_2.position.y + room_2.size_vector.y and
+                self.size_vector.y + self.position.y > room_2.position.y):
+
+            return True
+        else:
+            return False
+
+    def check_all_collision(self, room_list):
+        for other_room in room_list:
+
+            if self is other_room:
+                continue
+
+            if self.check_collision(other_room):
+                return True
+
+        return False
+
     @classmethod
     def generate_room(
             cls,
@@ -197,7 +264,7 @@ class Room:
                 'south': random.randint(0, 1) == 1,
                 'east': random.randint(0, 1) == 1,
                 'west': random.randint(0, 1) == 1,
-                     }
+            }
         if not size_vector:
             size_vector = Vector2(0, 0)
             size_vector.x = random.randint(2, 20)
@@ -206,10 +273,11 @@ class Room:
             level = GameObject.get_level() * 10
 
         if not enemy_power:
-            enemy_power = (level**2 * GameObject.get_level() * 1) - (random.randint(-5, 13))
+            enemy_power = (level ** 2 * GameObject.get_level() * 1) - (random.randint(-5, 13))
 
         if not total_loot:
-            total_loot = GameObject.get_level() * ((size_vector.x * size_vector.y) / 500) * (level ** 2 - GameObject.zero_to_range(level ** 2))
+            total_loot = GameObject.get_level() * ((size_vector.x * size_vector.y) / 500) * (
+                        level ** 2 - GameObject.zero_to_range(level ** 2))
 
         if not biome:
             biome = cls.biome_list[random.randint(0, len(cls.biome_list) - 1)]
@@ -250,7 +318,7 @@ class Room:
 
         for item in loot_list:
             item.position = Vector2(random.randint(0, size_vector.x),
-            random.randint(0, size_vector.y))
+                                    random.randint(0, size_vector.y))
 
         enemy_list = creatures.EnemyHumanoid.generate_enemies(level, enemy_power, enemy_distribution)
         enemy_list.sort(key=creatures.Creature.power_sort_key, reverse=True)
@@ -275,6 +343,7 @@ class Room:
 
 class Map:
     """Holds multiple rooms and their relation to each other"""
+
     def __init__(self, level, biome, room_list=[]):
         self.room_list = room_list
         self.level = level
@@ -285,23 +354,23 @@ class Map:
         map_bounds = self.get_map_bounds()
         ascii_pixel_matrix = []
 
-        for y in range(map_bounds['position'].y - 20, map_bounds['dimensions'].y + map_bounds['position'].y + 20):
+        for y in range(map_bounds['position'].y, map_bounds['dimensions'].y + map_bounds['position'].y):
             ascii_pixel_row = ['']
 
-            for x in range(map_bounds['position'].x - 10, map_bounds['dimensions'].x + map_bounds['position'].x + 10):
+            for x in range(map_bounds['position'].x, map_bounds['dimensions'].x + map_bounds['position'].x):
 
                 pixel_collider = Room.empty(Vector2(1, 1), Vector2(x, y))
                 collides = False
 
                 room_level = 0
                 for room in self.room_list:
-                    if Map.check_collision(room, pixel_collider):
+                    if room.check_collision(pixel_collider):
                         collides = True
                         room_level = room.level
 
                 if collides:
                     if room_level < 10:
-                        ascii_pixel_row.append(f'{room_level}')
+                        ascii_pixel_row.append(f'{int(room_level)}')
                     else:
                         ascii_pixel_row.append('#')
                 else:
@@ -359,7 +428,6 @@ class Map:
 
             for y in range(0, room.size_vector.y):
                 for x in range(0, room.size_vector.x):
-
                     image.putpixel((room.position.x + x - map_bounds['position'].x,
                                     room.position.y + y - map_bounds['position'].y),
                                    color)
@@ -375,6 +443,9 @@ class Map:
         return image
 
     def get_map_bounds(self):
+        """
+        Returns a map with
+        """
         left_most = 0
         right_most = 0
         top_most = 0
@@ -402,79 +473,9 @@ class Map:
     def room_level_sort_key(room):
         return room.level
 
-    @staticmethod
-    def check_collision(room_1, room_2):
-        """
-            Checks if the left of room_1 is to the left of any part of room 2 and
-            Checks if the right of room_1 is to the right of any part of room 2 and
-            Checks if the bottom of room_1 is under any part of room 2 and
-            Checks if the top of room_1 is above any part of room 2
-        """
-        if (room_1.position.x < room_2.position.x + room_2.size_vector.x and
-                room_1.position.x + room_1.size_vector.x > room_2.position.x and
-                room_1.position.y < room_2.position.y + room_2.size_vector.y and
-                room_1.size_vector.y + room_1.position.y > room_2.position.y):
-
-            return True
-        else:
-            return False
-
-    @staticmethod
-    def check_touching(room_1, room_2):
-        """
-            Checks if the left of room_1 is to the left of any part of room 2 and
-            Checks if the right of room_1 is to the right of any part of room 2 and
-            Checks if the bottom of room_1 is under any part of room 2 and
-            Checks if the top of room_1 is above any part of room 2
-        """
-        if (room_1.position.x < room_2.position.x + room_2.size_vector.x and
-                room_1.position.x + room_1.size_vector.x > room_2.position.x and
-                room_1.position.y < room_2.position.y + room_2.size_vector.y and
-                room_1.size_vector.y + room_1.position.y > room_2.position.y):
-
-            return True
-        else:
-            return False
-
-    @staticmethod
-    def check_horizontal_alignment(room_1, room_2):
-        """
-            Checks if the left of room_1 is to the left of any part of room 2 and
-            Checks if the right of room_1 is to the right of any part of room 2 and
-        """
-
-        if (room_1.position.x < room_2.position.x + room_2.size_vector.x and
-                room_1.position.x + room_1.size_vector.x > room_2.position.x):
-
-            return True
-        else:
-            return False
-    
-    @staticmethod
-    def check_vertical_alignment(room_1, room_2):
-        """
-            Checks if the bottom of room_1 is under any part of room 2 and
-            Checks if the top of room_1 is above any part of room 2
-        """
-
-        if (room_1.position.y < room_2.position.y + room_2.size_vector.y and
-                room_1.size_vector.y + room_1.position.y > room_2.position.y):
-
-            return True
-        else:
-            return False
-
     @classmethod
-    def check_all_collision(cls, room, room_list):
-        for other_room in room_list:
-
-            if room is other_room:
-                continue
-
-            if cls.check_collision(room, other_room):
-                return True
-            
-        return False
+    def generate_collider_grid(cls, size_vector=Vector2.zero()):
+        pass
 
     @classmethod
     async def generate_map(
@@ -483,7 +484,7 @@ class Map:
             connectivity=None,
             biome=None,
             level=None,
-            level_interval=2,
+            level_interval=1,
             current_map=[],
             special_rooms=[],
             special_room_occurance=0.01,
@@ -500,7 +501,7 @@ class Map:
         :param current_map: The map that this map will build upon
         :param special_rooms: list of premade rooms
         :param special_room_occurance: how often premade rooms appear as percent (0, 1)
-        :return: Map()
+        :return: Map instance
         """
 
         start_time = datetime.datetime.now()
@@ -516,7 +517,7 @@ class Map:
             biome = Room.biome_list[random.randint(0, len(Room.biome_list) - 1)]
 
         if not level:
-            level = GameObject.get_level()
+            level = 1
 
         if current_map:
             room_list = current_map
@@ -559,14 +560,14 @@ class Map:
                     'east': random.randint(0, 1) == 1,
                     'west': random.randint(0, 1) == 1
                 }
-                pass        # get rid of pycharm formatting bug
+                pass  # get rid of pycharm formatting bug
                 doors[entrance_direction] = True
 
                 exit_directions = []
 
                 for direction in doors:
                     if direction != entrance_direction and doors[direction]:
-                            exit_directions.append(direction)
+                        exit_directions.append(direction)
 
                 if len(exit_directions) == 0:
                     # room_tries += 1
@@ -589,7 +590,7 @@ class Map:
                         size_vector=Vector2(random.randint(2, 20), random.randint(2, 20)),
                         entrance_direction=entrance_direction,
                         exit_directions=exit_directions
-                        )
+                    )
 
                 # if room is above last_room
                 if entrance_direction == 'north':
@@ -619,13 +620,13 @@ class Map:
                     room.position.y = random.randint(last_room.position.y - room.size_vector.y + 1,
                                                      last_room.position.y + last_room.size_vector.y - 1)
 
-                if cls.check_all_collision(room, room_list):
+                if room.check_all_collision(room_list):
                     room_tries += 1
                     # logger.debug(f'room tries: {room_tries}')
                     continue
 
                 room_list.append(room)
-                logger.info(f'rooms: {len(room_list)}')
+                logger.info(f'Generated level {level} room')
                 # last_room = room
                 room_tries = 100000
                 room_succesful = True
@@ -638,13 +639,14 @@ class Map:
                 level -= 1 * level_interval
                 for _ in range(0, 5):
                     if list_index > 0:
-                        level -= 1 * level_interval
+                        level -= int(1 * level_interval)
                         list_index -= 1
-                        del(room_list[-1])
+                        del (room_list[-1])
+
+            progress_string = GameObject.progress_bar(int((len(room_list) / map_size) * 100), map_size)
 
             progress_message = await client.edit_message(progress_message, message_content +
-                                                         f'\nProgress: '
-                                                         f'{GameObject.progress_bar(int((len(room_list) / map_size) * 100), map_size)}')
+                                                         f'\nProgress: {progress_string}')
 
         # for room in room_list:
         #     for other_room in room_list:
@@ -697,7 +699,7 @@ class Map:
         #                 position=hallway_pos
         #             )
         #
-        #             if cls.check_all_collision(hallway, room_list):
+        #             if hallway.check_all_collision(room_list):
         #                 hallway = None
         #             else:
         #                 logger.debug(f'Created vertical hallway between {hallway.position.y} and {hallway.position.y + hallway.size_vector.y}')
@@ -748,7 +750,7 @@ class Map:
         #                 position=hallway_pos
         #             )
         #
-        #             if cls.check_all_collision(hallway, room_list):
+        #             if hallway.check_all_collision(room_list):
         #                 hallway = None
         #             else:
         #                 logger.debug(f'Created horizontal hallway between {hallway.position.x} and {hallway.position.x + hallway.size_vector.x}')

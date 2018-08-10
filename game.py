@@ -51,13 +51,17 @@ class GameObject:
 
     uninteresting_adjectives = ('uninteresting', 'ordinary', 'boring', 'plain', 'unoriginal')
 
+    description_starters = ('looks to be', 'looks like', 'seems to be',
+                            'appears to be', 'is', 'apparently is', 'seems like',
+                            'it\s', 'it is')
+
     def __init__(self, position=None, adjectives=[]):
         self.position = position
         self.adjectives = adjectives
 
         if len(adjectives) == 0:
-            self.adjectives = GameObject.uninteresting_adjectives
-            [random.randint(0, len(GameObject.uninteresting_adjectives) - 1)]
+            self.adjectives = GameObject.uninteresting_adjectives[random.randint(
+                0, len(GameObject.uninteresting_adjectives) - 1)]
 
     @staticmethod
     def progress_bar(percent=50, length=10):

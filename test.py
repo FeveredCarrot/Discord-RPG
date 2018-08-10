@@ -87,10 +87,10 @@ def enemy_generation_test():
 def room_colision_test():
     room_1 = Room.empty(Vector2(15, 5), Vector2(-10, 10))
     room_2 = Room.empty(Vector2(15, 5), Vector2(-11, 14))
-    if not Map.check_collision(room_1, room_2):
+    if not room_1.check_collision(room_2):
         logger.warning('Room colision not expected!')
     room_2.position.y = 14
-    if not Map.check_collision(room_1, room_2):
+    if not room_1.check_collision(room_2):
         logger.warning('Room collision expected!')
 
 

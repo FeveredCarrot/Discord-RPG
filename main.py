@@ -1,3 +1,16 @@
+"""Example Google style docstrings.
+
+This module runs the discord bot and executes commands from users
+
+Attributes:
+    prefix (string): The prefix that users have to type before any command
+
+    settings (dict): The settings for the bot and game. The token is
+
+    inspect_target (GameObject): The object that will be the target of the inspect command
+
+"""
+
 import discord
 import logging
 import random
@@ -30,7 +43,6 @@ logger.addHandler(file_handler)
 test.run_tests()
 
 prefix = '--'
-token = ''
 
 save_file = f'{os.path.dirname(os.path.realpath(__file__))}/save_data.json'
 settings_file = f'{os.path.dirname(os.path.realpath(__file__))}/settings.json'
@@ -39,22 +51,17 @@ settings = None
 save_data = None
 
 inspect_target = None
-player_list = []
-dead_player_list = []
-room_list = []
-
-last_message = None
 
 client = discord.Client()
 
 logger.info('Starting Discord RPG...')
 
 
-async def update_save_data():
-    save_data['player_list'] = player_list
-    save_data['room_list'] = room_list
-    save_data['game_state'] = {}
-    logger.debug(f'Save data : {save_data}')
+# async def update_save_data():
+#     save_data['player_list'] = player_list
+#     save_data['room_list'] = room_list
+#     save_data['game_state'] = {}
+#     logger.debug(f'Save data : {save_data}')
 
 
 async def save_settings(settings_dict):
@@ -68,29 +75,22 @@ async def save_game():
     Write the save data to the save json file.
     Auto converts game data to json readable format
     """
-    await update_save_data()
+    # await update_save_data()
 
     player_jsons = []
-    for player in player_list:
+    for player in save_data['player_list']:
         player_jsons.append(player.json_readable())
 
     dead_player_jsons = []
-    for player in dead_player_list:
+    for player in save_data['dead_player_list']:
         dead_player_jsons.append(player.json_readable())
 
     room_jsons = []
-    for room in room_list:
+    for room in save_data['room_list']:
         room_jsons.append(room.json_readable())
 
-    save_dict = {
-        'player_list': player_jsons,
-        'dead_player_list': dead_player_jsons,
-        'room_list': room_jsons,
-        'game_state': {}
-    }
-
     with open(save_file, 'w') as f:
-        f.write(json.dumps(save_dict, indent=2))
+        f.write(json.dumps(save_data, indent=2))
 
     logger.info('Game saved')
     logger.debug(save_data)
@@ -98,13 +98,11 @@ async def save_game():
 
 async def load_settings():
     global settings
-    global token
     with open(settings_file, 'a+') as f:
         f.seek(0)
         if os.path.getsize(settings_file) > 0:
             settings = json.loads(f.read())
-            token = settings['bot_token']
-            logger.debug(f'Settings dict : \n{settings}')
+            # logger.debug(f'Settings dict : \n{settings}')
         else:
             settings = {
                 'bot_token': '',
@@ -117,22 +115,36 @@ async def load_settings():
 async def load_save():
     logger.info('Loading save')
     global save_data
+
     with open(save_file, 'a+') as f:
         f.seek(0)
+
         if os.path.getsize(save_file) > 0:
             save_data = json.loads(f.read())
-            # logger.debug(f'Save dict :\n{save_data}')
 
+            tmp_save_data = {
+                'player_list': [],
+                'dead_player_list': [],
+                'room_list': [],
+                'game_state': {}
+            }
+
+            # logger.debug(f'Save dict :\n{save_data}')
             for player_attributes in save_data['player_list']:
                 player = creatures.Player.load_from_save(player_attributes)
-                player_list.append(player)
+                tmp_save_data['player_list'].append(player)
+
+            for player_attributes in save_data['dead_player_list']:
+                dead_player = creatures.Player.load_from_save(player_attributes)
+                tmp_save_data['dead_player_list'].append(dead_player)
 
             for room_attributes in save_data['room_list']:
                 room = rooms.Room.load_from_save(room_attributes)
-                room_list.append(room)
+                tmp_save_data['room_list'].append(room)
                 logger.debug(f'room {room}')
 
-            await update_save_data()
+            save_data = tmp_save_data
+
         else:
             save_data = {
                 'player_list': [],
@@ -166,14 +178,8 @@ def get_command_arguments(message_string):
 async def auto_save(interval):
     while True:
         await asyncio.sleep(interval)
-        await update_save_data()
         await save_game()
 
-
-# async def get_reply(author_id):
-#     while last_message.id != author_id:
-#         await asyncio.sleep(0.1)
-#     return last_message
 
 async def add_reacts(message, react_list):
     for emoji in react_list:
@@ -186,7 +192,7 @@ def remove_spaces(string):
 
     combined_string = ''
     for string in string_list:
-        combined_string == string
+        combined_string = string
 
     return combined_string
 
@@ -208,19 +214,23 @@ async def on_ready():
 @client.event
 async def on_message(message):
     global inspect_target
-    global last_message
-    last_message = message
     if message.content.startswith(prefix):
         logger.info(f'{message.author.name} sent the command: {message.content[len(prefix):]}')
 
-    if message.content.startswith(f'{prefix} test'):
-        counter = 0
-        tmp = await client.send_message(message.channel, 'Calculating messages...')
-        async for log in client.logs_from(message.channel, limit=100):
-            if log.author == message.author:
-                counter += 1
-
-        await client.edit_message(tmp, f'You have {counter} messages.')
+    if message.content.startswith(f'{prefix}help'):
+        await client.send_message(message.channel, f'Prefix is {prefix}\n'
+                                                   f'Anything in () is a command argument. '
+                                                   f'Put command arguments after a command without using parentheses\n'
+                                                   f'\nList of available commands:\n'
+                                                   f'{prefix}help\n'
+                                                   f'{prefix}save\n'
+                                                   f'{prefix}weapon\n'
+                                                   f'{prefix}armour\n'
+                                                   f'{prefix}enemy\n'
+                                                   f'{prefix}room\n'
+                                                   f'{prefix}map (number of rooms)\n'
+                                                   f'{prefix}inspect (item/enemy name)\n'
+                                                   f'{prefix}create character')
 
     elif message.content.startswith(f'{prefix}weapon'):
         inspect_target = items.Weapon.get_random_weapon(items.Item.get_level())
@@ -264,7 +274,7 @@ async def on_message(message):
         await client.send_message(message.channel, 'Game Saved')
 
     elif message.content.startswith(f'{prefix}create character'):
-        for player in player_list:
+        for player in save_data['player_list']:
 
             if player.stat_dict['player_id'] == message.author.id:
 
@@ -280,7 +290,7 @@ async def on_message(message):
                         return
 
                     elif reply.reaction.emoji == '✅':
-                        player_list.remove(player)
+                        save_data['player_list'].remove(player)
                         break
 
                 else:
@@ -293,7 +303,7 @@ async def on_message(message):
         player_name = player_name.content.capitalize()
 
         if player_name[:len(prefix)] == '--':
-            player_name == player_name[len(prefix):]
+            player_name = player_name[len(prefix):]
 
         await client.send_message(message.channel, f'Please type your character\'s class. \n'
                                                    f'Type {prefix}classes to see a list of available classes.')
@@ -427,7 +437,7 @@ async def on_message(message):
 
         player_instance = creatures.Player(player_stats, player_name, 1, [], message.author.id, None)
         player_instance.equip_armour(player_armour)
-        player_list.append(player_instance)
+        save_data['player_list'].append(player_instance)
         await client.send_message(message.channel, f'Player {player_name} created!\n {str(player_instance)}')
         logger.debug(str(player_instance))
 
@@ -478,7 +488,7 @@ async def main():
     await load_save()
     loop = asyncio.get_event_loop()
     auto_save_task = loop.create_task(auto_save(3600))
-    client_start_task = loop.create_task(client.start(token))
+    client_start_task = loop.create_task(client.start(settings['bot_token']))
     await asyncio.wait([auto_save_task, client_start_task])
 
 if __name__ == '__main__':

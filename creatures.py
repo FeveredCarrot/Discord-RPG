@@ -198,7 +198,9 @@ class Humanoid(Creature):
         Returns a string describing the player.
         Info level is a float from 0 to 1 which changes how detailed the description is.
         """
-        pass
+        description_string = f'{self.name}'
+        if info_level < 0.2:
+            description_string += f''
 
     @property
     def stat_dict(self):
@@ -624,7 +626,6 @@ class EnemyHumanoid(Humanoid):
 
         else:
             raise Exception(enemy_class + ' is not a valid class type!')
-        pass
 
         enemy_stats['weapon_slots'] = {'left_hand': None, 'right_hand': None}
         right_handed = True
